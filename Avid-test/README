@@ -1,0 +1,39 @@
+Test task #COM #shell #winapi
+
+
+Step1. If you are going to use the Shell extension in a x64 Windows system, 
+please configure the Visual C++ project to target 64-bit platforms using 
+project configurations (http://msdn.microsoft.com/en-us/library/9yb4317s.aspx). 
+Only 64-bit extension DLLs can be loaded in the 64-bit Windows Shell. 
+
+If the extension is to be loaded in a 32-bit Windows system, you can use the 
+default Win32 project configuration.
+
+Step2. After you successfully build the sample project in Visual Studio 2010, 
+you will get a DLL: CppShellExtContextMenuHandler.dll. Start a command prompt 
+as administrator, navigate to the folder that contains the file and enter the 
+command:
+
+    Regsvr32.exe CppShellExtContextMenuHandler.dll
+
+The context menu handler is registered successfully if you see a message box 
+saying:
+
+    "DllRegisterServer in CppShellExtContextMenuHandler.dll succeeded."
+
+Step3. Find a .cpp file in the Windows Explorer (e.g. FileContextMenuExt.cpp 
+in the sample folder), and right click it. You would see the "Display File 
+Name (C++)" menu item with icon in the context menu and a menu seperator 
+below it. Clicking the menu item brings up a message box that displays the 
+full path of the .cpp file.
+
+The "Display File Name (C++)" menu item is added and displayed when only one 
+.cpp file is selected and right-clicked. If more than one file are selected 
+in the Windows Explorer, you will not see the context menu item.
+
+Step4. In the same command prompt, run the command 
+
+    Regsvr32.exe /u CppShellExtContextMenuHandler.dll
+
+to unregister the Shell context menu handler.
+

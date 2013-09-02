@@ -1,0 +1,8 @@
+*.bin
+*.exe
+*.dll
+Debug/
+*.bak
+*.swp
+*.tmp
+*.patch
