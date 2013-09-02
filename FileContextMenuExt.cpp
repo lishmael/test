@@ -40,13 +40,13 @@ extern long g_cDllRef;
 #define IDM_DISPLAY             0  // The command's identifier offset
 
 FileContextMenuExt::FileContextMenuExt(void) : m_cRef(1), 
-    m_pszMenuText(L"&Display File Name (C++)"),
-    m_pszVerb("cppdisplay"),
-    m_pwszVerb(L"cppdisplay"),
-    m_pszVerbCanonicalName("CppDisplayFileName"),
-    m_pwszVerbCanonicalName(L"CppDisplayFileName"),
-    m_pszVerbHelpText("Display File Name (C++)"),
-    m_pwszVerbHelpText(L"Display File Name (C++)")
+    m_pszMenuText(L"&Avid Test"),
+    m_pszVerb("avidtest"),
+    m_pwszVerb(L"avidtest"),
+    m_pszVerbCanonicalName("AvidTest"),
+    m_pwszVerbCanonicalName(L"AvidTest"),
+    m_pszVerbHelpText("AvidTest"),
+    m_pwszVerbHelpText(L"AvidTest")
 {
     InterlockedIncrement(&g_cDllRef);
 
@@ -73,9 +73,9 @@ void FileContextMenuExt::OnVerbDisplayFileName(HWND hWnd)
 {
     wchar_t szMessage[300];
     if (SUCCEEDED(StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-        L"The selected file is:\r\n\r\n%s", this->m_szSelectedFile)))
+        L"The first selected file is:\r\n\r\n%s", this->m_SelectedFiles.front())))
     {
-        MessageBox(hWnd, szMessage, L"CppShellExtContextMenuHandler", MB_OK);
+        MessageBox(hWnd, szMessage, L"AvidTestCppShellExtContextMenuHandler", MB_OK);
     }
 }
 
@@ -144,16 +144,16 @@ IFACEMETHODIMP FileContextMenuExt::Initialize(
             // code sample displays the custom context menu item when only 
             // one file is selected. 
             UINT nFiles = DragQueryFile(hDrop, 0xFFFFFFFF, NULL, 0);
-            if (nFiles == 1)
-            {
-                // Get the path of the file.
-                if (0 != DragQueryFile(hDrop, 0, m_szSelectedFile, 
-                    ARRAYSIZE(m_szSelectedFile)))
-                {
-                    hr = S_OK;
+            hr = S_OK;
+            
+            for (auto i = 0; i < nFiles; ++i) {
+                wchar_t* tmp_p_name = new wchar_t[MAX_PATH];
+                if (0 == DragQueryFile(hDrop, i, tmp_p_name, ARRAYSIZE(tmp_p_name))) {
+                    hr = E_FAIL;
                 }
+                m_SelectedFiles.push_back(tmp_p_name);
             }
-
+            
             GlobalUnlock(stm.hGlobal);
         }
 

@@ -59,7 +59,7 @@ private:
     long m_cRef;
 
     // The name of the selected file.
-    list<wchar_t*> m_SelectedFiles;
+    std::list<wchar_t*> m_SelectedFiles;
 
     // The method that handles the "display" verb.
     void OnVerbDisplayFileName(HWND hWnd);
