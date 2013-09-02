@@ -1,4 +1,4 @@
-LIBRARY	"AvidTestCppShellExtContextMenuHandler"
+LIBRARY	"Avid-test"
 EXPORTS
     DllGetClassObject   PRIVATE
     DllCanUnloadNow     PRIVATE
