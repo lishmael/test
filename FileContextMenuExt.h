@@ -32,6 +32,8 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 #include <windows.h>
 #include <shlobj.h>     // For IShellExtInit and IContextMenu
 #include <list>
+#include <string>
+
 
 class FileContextMenuExt : public IShellExtInit, public IContextMenu
 {

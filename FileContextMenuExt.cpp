@@ -71,12 +71,13 @@ FileContextMenuExt::~FileContextMenuExt(void)
 
 void FileContextMenuExt::OnVerbDisplayFileName(HWND hWnd)
 {
-    wchar_t szMessage[300];
-    if (SUCCEEDED(StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-        L"The first selected file is:\r\n\r\n%s", this->m_SelectedFiles.front())))
-    {
-        MessageBox(hWnd, szMessage, L"AvidTestCppShellExtContextMenuHandler", MB_OK);
+    std::wstring sMessage = "Files selected:\r\n";
+    for (auto i_fName = m_SelectedFiles.begin(); i_fName != m_SelectedFiles.end(); ++i_fName) {
+        sMessage += std::wstring(*i_fName, ARRAYSIZE(*i_fName));
+        sMessage += "\r\n"; 
     }
+
+    MessageBox(hWnd, sMessage.c_str(), L"AvidTestCppShellExtContextMenuHandler", MB_OK);
 }
 
 
