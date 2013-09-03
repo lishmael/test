@@ -39,9 +39,10 @@ void ItemListHandler::process(const std::wstring& sArg) {
 						 std::ifstream::in | std::ifstream::binary);
 	if (inFile.is_open()) {
 		unsigned long lSum = 0, lSize = 0;
-		for (char c = inFile.get(); c != std::char_traits<char>::eof(); c = inFile.get()) {
+		char* c = new char[1];
+		for (; inFile; inFile.read(c, sizeof(char))) {
 			if (inFile.good()) {
-				lSum += (long)c;
+				lSum += (long)*c;
 				++lSize;
 			}
 		}
