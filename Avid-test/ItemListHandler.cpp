@@ -16,7 +16,7 @@ ItemListHandler::~ItemListHandler(void) {
 }
 
 void ItemListHandler::threadCleanerLoop() {
-	while (mProcessingActive >= 0 && true) {
+	while (mProcessingActive >= 0) {
 		if (!mThreadDoneIDs.empty()) {
 			Autolock _lock(&mThreadOpLock);
 			
