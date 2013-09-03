@@ -1,6 +1,8 @@
 *.bin
 *.exe
 *.dll
+*.sdf
+*.suo
 Debug/
 *.bak
 *.swp

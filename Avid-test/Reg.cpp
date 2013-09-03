@@ -1,25 +1,3 @@
-/****************************** Module Header ******************************\
-Module Name:  Reg.cpp
-Project:      CppShellExtContextMenuHandler
-Copyright (c) Microsoft Corporation.
-
-The file implements the reusable helper functions to register and unregister 
-in-process COM components and shell context menu handlers in the registry.
-
-RegisterInprocServer - register the in-process component in the registry.
-UnregisterInprocServer - unregister the in-process component in the registry.
-RegisterShellExtContextMenuHandler - register the context menu handler.
-UnregisterShellExtContextMenuHandler - unregister the context menu handler.
-
-This source is subject to the Microsoft Public License.
-See http://www.microsoft.com/opensource/licenses.mspx#Ms-PL.
-All other rights reserved.
-
-THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
-EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED 
-WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
-\***************************************************************************/
-
 #include "Reg.h"
 #include <strsafe.h>
 
