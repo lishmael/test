@@ -27,6 +27,9 @@
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ItemListHandler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ClassFactory.cpp">
@@ -41,6 +44,9 @@
     <ClCompile Include="Reg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ItemListHandler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="GlobalExportFunctions.def">
@@ -49,11 +55,11 @@
     <None Include="README" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="OK.bmp">
-      <Filter>Resource Files</Filter>
-    </Image>
     <Image Include="thumbnail.png">
       <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="OK.bmp">
+      <Filter>Source Files</Filter>
     </Image>
   </ItemGroup>
 </Project>

@@ -1,36 +1,10 @@
-/****************************** Module Header ******************************\
-Module Name:  FileContextMenuExt.cpp
-Project:      CppShellExtContextMenuHandler
-Copyright (c) Microsoft Corporation.
-
-The code sample demonstrates creating a Shell context menu handler with C++. 
-
-A context menu handler is a shell extension handler that adds commands to an 
-existing context menu. Context menu handlers are associated with a particular 
-file class and are called any time a context menu is displayed for a member 
-of the class. While you can add items to a file class context menu with the 
-registry, the items will be the same for all members of the class. By 
-implementing and registering such a handler, you can dynamically add items to 
-an object's context menu, customized for the particular object.
-
-The example context menu handler adds the menu item "Display File Name (C++)"
-to the context menu when you right-click a .cpp file in the Windows Explorer. 
-Clicking the menu item brings up a message box that displays the full path 
-of the .cpp file.
-
-This source is subject to the Microsoft Public License.
-See http://www.microsoft.com/opensource/licenses.mspx#Ms-PL.
-All other rights reserved.
-
-THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
-EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED 
-WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
-\***************************************************************************/
-
 #include "FileContextMenuExt.h"
 #include "resource.h"
+#include "ItemListHandler.h"
+
 #include <strsafe.h>
 #include <Shlwapi.h>
+
 #pragma comment(lib, "shlwapi.lib")
 
 
@@ -69,15 +43,27 @@ FileContextMenuExt::~FileContextMenuExt(void)
 }
 
 
-void FileContextMenuExt::OnVerbDisplayFileName(HWND hWnd)
-{
+void FileContextMenuExt::OnVerbDisplayFileName(HWND hWnd) {
 	std::wstring sMessage = std::wstring(L"Files selected:\r\n");
-    for (auto i_fName = m_SelectedFiles.begin(); i_fName != m_SelectedFiles.end(); ++i_fName) {
-		sMessage += std::wstring(*i_fName, std::char_traits<wchar_t>::length(*i_fName));
-		sMessage += std::wstring(L"\r\n"); 
-    }
-
-    MessageBox(hWnd, sMessage.c_str(), L"Avid-test", MB_OK);
+	{
+		ItemListHandler procList;
+		for (auto i_fName = m_SelectedFiles.begin(); i_fName != m_SelectedFiles.end(); ++i_fName) {
+			procList.addItemToProcess(*i_fName);
+		}
+		std::list<std::wstring> resList = procList.getResults();
+		for (auto i_strRes = resList.begin(); i_strRes != resList.end(); ++i_strRes) {
+			sMessage += *i_strRes + L"\r\n";
+		}
+	}
+	if (0 != CreateDirectory(L"C:\\Avid-test\\", NULL) || GetLastError() == ERROR_ALREADY_EXISTS) {
+		std::wofstream oLog("C:\\Avid-test\\avid.log", std::ofstream::out | std::ofstream::trunc);
+		if (oLog.is_open()) {
+			oLog << sMessage;
+			oLog.close();
+		}
+	}
+	MessageBox(hWnd, sMessage.c_str(), L"Avid-test", MB_OK);
+	m_SelectedFiles.clear();
 }
 
 
@@ -152,7 +138,8 @@ IFACEMETHODIMP FileContextMenuExt::Initialize(
 				if (0 == DragQueryFile(hDrop, i, tmp_p_name, std::char_traits<wchar_t>::length(tmp_p_name))) {
                     hr = E_FAIL;
                 }
-                m_SelectedFiles.push_back(tmp_p_name);
+				m_SelectedFiles.emplace_back(tmp_p_name);
+				delete[] tmp_p_name;
             }
             
             GlobalUnlock(stm.hGlobal);

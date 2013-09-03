@@ -1,32 +1,3 @@
-/****************************** Module Header ******************************\
-Module Name:  dllmain.cpp
-Project:      CppShellExtContextMenuHandler
-Copyright (c) Microsoft Corporation.
-
-The file implements DllMain, and the DllGetClassObject, DllCanUnloadNow, 
-DllRegisterServer, DllUnregisterServer functions that are necessary for a COM 
-DLL. 
-
-DllGetClassObject invokes the class factory defined in ClassFactory.h/cpp and 
-queries to the specific interface.
-
-DllCanUnloadNow checks if we can unload the component from the memory.
-
-DllRegisterServer registers the COM server and the context menu handler in 
-the registry by invoking the helper functions defined in Reg.h/cpp. The 
-context menu handler is associated with the .cpp file class.
-
-DllUnregisterServer unregisters the COM server and the context menu handler. 
-
-This source is subject to the Microsoft Public License.
-See http://www.microsoft.com/opensource/licenses.mspx#Ms-PL.
-All other rights reserved.
-
-THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
-EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED 
-WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
-\***************************************************************************/
-
 #include <windows.h>
 #include <Guiddef.h>
 #include "ClassFactory.h"           // For the class factory
