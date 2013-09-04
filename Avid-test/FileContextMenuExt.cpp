@@ -46,20 +46,23 @@ FileContextMenuExt::~FileContextMenuExt(void)
 void FileContextMenuExt::OnVerbDisplayFileName(HWND hWnd) {
 	std::wstring sMessage = std::wstring(L"Files selected:\r\n");
 	{
-		ItemListHandler procList;
-		for (auto i_fName = m_SelectedFiles.begin(); i_fName != m_SelectedFiles.end(); ++i_fName) {
+        std::string sLogFileName = "C:\\Avid-test\\avid.log";
+        if (0 != CreateDirectory(L"C:\\Avid-test\\", NULL) || GetLastError() == ERROR_ALREADY_EXISTS) {
+            std::wofstream oLog(sLogFileName, std::ofstream::out | std::ofstream::trunc);
+            if (oLog.is_open()) {
+                oLog << L"-------Begin log file" << std::endl;
+                oLog.close();
+            }
+        }
+		
+        ItemListHandler procList(sLogFileName);
+	
+    	for (auto i_fName = m_SelectedFiles.begin(); i_fName != m_SelectedFiles.end(); ++i_fName) {
 			procList.addItemToProcess(*i_fName);
 		}
 		std::list<std::wstring> resList = procList.getResults();
 		for (auto i_strRes = resList.begin(); i_strRes != resList.end(); ++i_strRes) {
-			sMessage += *i_strRes + L"\r\n";
-		}
-	}
-	if (0 != CreateDirectory(L"C:\\Avid-test\\", NULL) || GetLastError() == ERROR_ALREADY_EXISTS) {
-		std::wofstream oLog("C:\\Avid-test\\avid.log", std::ofstream::out | std::ofstream::trunc);
-		if (oLog.is_open()) {
-			oLog << sMessage;
-			oLog.close();
+			sMessage += *i_strRes + std::endl; 
 		}
 	}
 	MessageBox(hWnd, sMessage.c_str(), L"Avid-test", MB_OK);

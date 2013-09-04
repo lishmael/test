@@ -3,7 +3,6 @@
 #include <thread>
 #include <mutex>
 #include <list>
-#include <unordered_map>
 #include <string>
 #include <algorithm>
 #include <fstream>
@@ -22,24 +21,30 @@ private:
 		~Autolock();
 	};
 	
+    ItemListHandler(const ItemListHandler&);
+    ItemListHandler& operator=(const Autolock&);
+
 	// Locks
 	std::mutex mResultLock;
-	std::mutex mThreadOpLock;
-	
+	std::mutex mQueueLock;
+    std::mutex mThreadOpLock;
+    std::mutex mLogFileLock;
+
 	// Threads
-	std::thread* m_pCleanerThread;
-	std::unordered_map<std::thread::id, std::thread*> m_pActiveThreads;
+	std::list<std::thread*> m_pActiveThreads;
 	
 	// State
-	std::list<std::thread::id> mThreadDoneIDs;
-	int mProcessingActive;
-	
+	bool mAllStop;
+    int mProcessingActive;
+    
+    // Input queue
+    std::list<std::wstring> mQueue;
+
 	// Result
 	std::list<std::wstring> mResult;
-		
+	std::wofstream mOutLogger;	
 	// Processing
-	void process(const std::wstring& sArg);	
-	void threadCleanerLoop();
+	void process();	
 	
 public:
 	void addItemToProcess(const std::wstring& sItem); // adds new item to process
@@ -48,6 +53,6 @@ public:
 										// note: doesn't cleans previous results
 	void cleanResults(); // removes contents of mResult
 	
-	ItemListHandler(void);
+	ItemListHandler(const std::wstring aLogFileName);
 	~ItemListHandler(void);
 };
