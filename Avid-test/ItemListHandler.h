@@ -7,28 +7,23 @@
 #include <algorithm>
 #include <fstream>
 
+// TODO
+// rewrite result to be map
+// so it autosorts
+
 class ItemListHandler
 {
 private:
 	// 
-	class Autolock {
-	private:
-		std::mutex* mLock;
-		Autolock(const Autolock&);
-		Autolock& operator=(const Autolock&);
-	public:
-		Autolock(std::mutex* Mutex);
-		~Autolock();
-	};
-	
+
     ItemListHandler(const ItemListHandler&);
     ItemListHandler& operator=(const Autolock&);
 
 	// Locks
-	std::mutex mResultLock;
-	std::mutex mQueueLock;
-    std::mutex mThreadOpLock;
-    std::mutex mLogFileLock;
+	std::mutex m_lockResult;
+	std::mutex m_lockQueue;
+    std::mutex m_lockOperation;
+    std::mutex m_lockLogging;
 
 	// Threads
 	std::list<std::thread*> m_pActiveThreads;

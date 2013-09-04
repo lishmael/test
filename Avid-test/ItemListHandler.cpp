@@ -23,11 +23,11 @@ ItemListHandler::~ItemListHandler(void) {
 
 void ItemListHandler::process() {
     while (!mAllStop) {
-        if (!mQueueLock.try_lock()) {
+        if (!m_lockQueue.try_lock()) {
              continue;
         }
-            if (!mThreadOpLock.try_lock() || !mQueue.size()) {
-                mQueueLock.unlock();
+            if (!m_lockOperation.try_lock() || !mQueue.size()) {
+                m_lockQueue.unlock();
                 continue;
             }
             
@@ -35,9 +35,9 @@ void ItemListHandler::process() {
                 const std::wstring& sArg = mQueue.front();
                 mQueue.pop_front();
 
-            mThreadOpLock.unlock();
+            m_lockOperation.unlock();
     
-        mQueueLock.unlock();
+        m_lockQueue.unlock();
     
         std::ifstream inFile(sArg.c_str(), 
                              std::ifstream::in | std::ifstream::binary);
@@ -56,29 +56,29 @@ void ItemListHandler::process() {
                 + L"b, sum: " + std::to_wstring(lSum);
 
             {
-                Autolock _logLock(&mOutFileLock);
+                std::lock_guard<std::mutex> _logLock(m_lockLoggingk);
                 mOutLogger << sTmpResult << std::endl;
             } 
             
-            Autolock _resLock(&mResultLock);
+            std::lock_guard<std::mutex> _resLock(m_lockResult);
             mResult.push_back(sTmpResult);
         }
-        Autolock _lock(&mThreadOpLock);
+        std::lock_guard<std::mutex> _lock(m_lockOperation);
         --mProcessingActive;
     }
 }
 
 void ItemListHandler::addItemToProcess(const std::wstring& sItem)
 {
-	Autolock _lock(&mQueueLock);
+	std::lock_guard<std::mutex> _lock(m_lockQueue);
     mQueue.push_back(sItem);	
 }
 
 std::list<std::wstring> ItemListHandler::getResults()
 {
     while (true) {
-        if (!mProcessingActive && mQueueLock.try_lock() && 
-            mThreadOpLock.try_lock && mResultLock.try_lock()) {
+        if (!mProcessingActive && m_lockQueue.try_lock() && 
+            m_lockOperation.try_lock && m_lockResult.try_lock()) {
             break;
         }
     }
@@ -86,23 +86,15 @@ std::list<std::wstring> ItemListHandler::getResults()
     auto res = mResult;
     res.sort();
     
-    mQueueLock.unlock();
-    mThreadOpLock.unlock();
-    mResultLock.unlock();
+    m_lockQueue.unlock();
+    m_lockOperation.unlock();
+    m_lockResult.unlock();
 
 	return res;
 }
 
 void ItemListHandler::cleanResults() {
-	Autolock _lock(&mResultLock);
+	std::lock_guard<std::mutex> _lock(m_lockResult);
 	mResult.clear();
 }
 
-ItemListHandler::Autolock::Autolock(std::mutex* Mutex) {
-	mLock = Mutex;
-	mLock->lock();
-}
-
-ItemListHandler::Autolock::~Autolock() {
-	mLock->unlock();
-}
