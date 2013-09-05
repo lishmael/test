@@ -70,7 +70,6 @@ void ItemListHandler::process() {
                                         NULL);
             
             std::wstring tmp_sRes = L"";
-
             tmp_sRes += sArg.substr(sArg.find_last_of(L"/\\") + 1) + L" ";
             
             if (hFile != INVALID_HANDLE_VALUE) {
@@ -90,6 +89,10 @@ void ItemListHandler::process() {
                     L"; ";
                 CloseHandle(hFile);
             }
+
+            tmp_sRes += L"Size: ";
+            std::wstring sizes[] = {L"B", L"KiB", L"MiB", L"GiB"};
+            long muls[] = { 1, 1024, 1048576, 1073742824 };
 
             tmp_sRes += L"Size: ";
             std::wstring sizes[] = {L"B", L"KiB", L"MiB", L"GiB"};
@@ -141,5 +144,4 @@ std::set<std::wstring> ItemListHandler::getResults() const
 
     return mResult;
 }
-
 
