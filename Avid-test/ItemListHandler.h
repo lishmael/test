@@ -36,9 +36,9 @@ private:
     ITEM_STATE mState;
 };
 
-typedef Item t_mapValue;
+typedef Item t_mapItem;
 typedef std::wstring t_mapKey;
-typedef std::pair<t_mapKey, t_mapValue> t_mapItem;
+typedef std::pair<t_mapKey, t_mapItem> t_mapElement;
 
 class ItemListHandler
 {
@@ -55,9 +55,9 @@ private:
 	std::list<std::thread*> m_pActiveThreads;
     
     // I/O
-    std::map<t_mapKey, t_mapValue>::iterator m_iEnd;
-    std::map<t_mapKey, t_mapValue>::iterator m_iQueueProcesssing;
-    std::map<t_mapKey, t_mapValue>::iterator m_iLog;
+    std::map<t_mapKey, t_mapItem>::iterator m_iEnd;
+    std::map<t_mapKey, t_mapItem>::iterator m_iQueueProcesssing;
+    std::map<t_mapKey, t_mapItem>::iterator m_iLog;
     std::wofstream m_ofsLogger;
     std::wstring m_sRes;
 
@@ -69,12 +69,12 @@ public:
     mutable std::condition_variable m_cvResult;
     mutable std::condition_variable m_cvProcessingEnds;
     
-    ItemListHandler(std::map<t_mapKey, t_mapValue>::iterator begin,
-                    std::map<t_mapKey, t_mapValue>::iterator end);
+    ItemListHandler(std::map<t_mapKey, t_mapItem>::iterator begin,
+                    std::map<t_mapKey, t_mapItem>::iterator end);
 	~ItemListHandler(void); 
     
-    bool reQueue(std::map<t_mapKey, t_mapValue>::iterator begin,
-                 std::map<t_mapKey, t_mapValue>::iterator end);
+    bool reQueue(std::map<t_mapKey, t_mapItem>::iterator begin,
+                 std::map<t_mapKey, t_mapItem>::iterator end);
     
     std::wstring getResult();
     

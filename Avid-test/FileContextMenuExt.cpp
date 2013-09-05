@@ -49,7 +49,7 @@ void FileContextMenuExt::OnVerbDisplayFileName(HWND hWnd) {
 }
 
 
-void FileContextMenuExt::calculateAndShow(HWND hWnd, std::map<t_mapKey, t_mapValue> items) {
+void FileContextMenuExt::calculateAndShow(HWND hWnd, std::map<t_mapKey, t_mapItem> items) {
     try {
         ItemListHandler queueProcessor(items.begin(), items.end());
 
@@ -63,7 +63,7 @@ void FileContextMenuExt::calculateAndShow(HWND hWnd, std::map<t_mapKey, t_mapVal
         } else {
             int j = 0;
             for (auto i = items.begin(); i != items.end() && j <= MAX_MESSAGE_ROWS; ++i) {
-                t_mapValue* item = &i->second;
+                t_mapItem* item = &i->second;
                 if (item->isReady()) {
                     sMessage += item->getStat() + L"\n";
                     ++j;
@@ -155,10 +155,12 @@ IFACEMETHODIMP FileContextMenuExt::Initialize(
             for (auto i = 0; i < nFiles; ++i) {
 				if (0 == DragQueryFile(hDrop, i, p_TmpFName, sizeof(wchar_t)*MAX_PATH)) {
                     hr = E_FAIL;
-                 }
-                t_mapValue* item = new t_mapValue(std::wstring(p_TmpFName));
-                m_SelectedFiles.insert(t_mapItem(item->getFullPath(), *item));
-                delete item;
+                }
+                t_mapKey itemKey = std::wstring(p_TmpFName);
+                t_mapItem item(itemKey);
+                
+                m_SelectedFiles.insert(t_mapElement(itemKey, item));
+                
                 memset(p_TmpFName, 0, sizeof(wchar_t)*MAX_PATH);
             }
             delete[] p_TmpFName;

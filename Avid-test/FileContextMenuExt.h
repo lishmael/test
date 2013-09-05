@@ -35,11 +35,11 @@ private:
     // Reference count of component.
     long m_cRef;
 
-    std::map<t_mapKey, t_mapValue> m_SelectedFiles;
+    std::map<t_mapKey, t_mapItem> m_SelectedFiles;
 
     // The method that handles the "display" verb.
     void OnVerbDisplayFileName(HWND hWnd);
-    void calculateAndShow(HWND hWnd, std::map<t_mapKey, t_mapValue> items);
+    void calculateAndShow(HWND hWnd, std::map<t_mapKey, t_mapItem> items);
 
     PWSTR m_pszMenuText;
     HANDLE m_hMenuBmp;

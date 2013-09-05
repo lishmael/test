@@ -1,15 +1,15 @@
 #include "ItemListHandler.h"
 
-ItemListHandler::ItemListHandler(std::map<t_mapKey, t_mapValue>::iterator begin,
-                                 std::map<t_mapKey, t_mapValue>::iterator end) : 
+ItemListHandler::ItemListHandler(std::map<t_mapKey, t_mapItem>::iterator begin,
+                                 std::map<t_mapKey, t_mapItem>::iterator end) : 
     mState(PROCESSING_STATE::QUEUED),
     m_iEnd(end),
     m_iQueueProcesssing(begin), 
     m_iLog(begin) {
 }
 
-bool ItemListHandler::reQueue(std::map<t_mapKey, t_mapValue>::iterator begin,
-                              std::map<t_mapKey, t_mapValue>::iterator end) {
+bool ItemListHandler::reQueue(std::map<t_mapKey, t_mapItem>::iterator begin,
+                              std::map<t_mapKey, t_mapItem>::iterator end) {
     if (mState == PROCESSING_STATE::PROCESSING) return false;
 
     waitTillReady();
@@ -47,7 +47,7 @@ void ItemListHandler::invoke_processing() {
         ++m_iQueueProcesssing;
         m_lockOperation.unlock();
         
-        t_mapValue* item = &i_elementProcessed->second;
+        t_mapItem* item = &i_elementProcessed->second;
         item->stat();
         
         if (item->isReady())
@@ -73,7 +73,7 @@ void ItemListHandler::log() {
     }
 
     for (; m_iLog != m_iEnd; ++m_iLog) {
-        t_mapValue* item = &m_iLog->second;
+        t_mapItem* item = &m_iLog->second;
         while (!item->isReady()) {
             std::unique_lock<std::mutex> _ul(m_lockOperation);
             m_cvResult.wait_for(_ul, std::chrono::milliseconds(100));
