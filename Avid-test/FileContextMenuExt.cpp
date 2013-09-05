@@ -13,6 +13,7 @@ extern long g_cDllRef;
 #define IDM_DISPLAY             0  // The command's identifier offset
 
 FileContextMenuExt::FileContextMenuExt(void) : m_cRef(1), 
+    m_SelectedFiles(),
     m_pszMenuText(L"&Avid-test"),
     m_pszVerb("Avid-test"),
     m_pwszVerb(L"Avid-test"),
@@ -22,7 +23,7 @@ FileContextMenuExt::FileContextMenuExt(void) : m_cRef(1),
     m_pwszVerbHelpText(L"Avid-test")
 {
     InterlockedIncrement(&g_cDllRef);
-
+    m_SelectedFiles.clear();
     // Load the bitmap for the menu item. 
     // If you want the menu item bitmap to be transparent, the color depth of 
     // the bitmap must not be greater than 8bpp.
@@ -43,45 +44,50 @@ FileContextMenuExt::~FileContextMenuExt(void)
 
 
 void FileContextMenuExt::OnVerbDisplayFileName(HWND hWnd) {
-	{
-        std::thread handleThread(&FileContextMenuExt::calculateAndShow, this);
-        handleThread.detach();
-	}
+    std::thread handleThread(&FileContextMenuExt::calculateAndShow, this, hWnd);
+    handleThread.detach();
 }
 
 
 void FileContextMenuExt::calculateAndShow(HWND hWnd) {
     std::string sLogFileName = "C:\\Avid-test\\avid.log";
-    
+    std::wofstream oLog;
     if (0 != CreateDirectory(L"C:\\Avid-test\\", NULL) || GetLastError() == ERROR_ALREADY_EXISTS) {
-        std::wofstream oLog(sLogFileName, std::ofstream::out | std::ofstream::trunc);
+        oLog.open(sLogFileName, std::ofstream::out | std::ofstream::trunc);
         if (oLog.is_open()) {
             oLog << L"-------Begin log file\r\n";
         }
     }
+    size_t sz = m_SelectedFiles.size();
+    try {
+        ItemListHandler queueProcessor;
+        auto iBeg = m_SelectedFiles.begin();
+        auto iEnd = m_SelectedFiles.end();
+        queueProcessor.addQueueToProcess(iBeg, iEnd);
     
-    ItemListHandler queueProcessor();
-    queueProcessor->addQueueToProcess(*m_SelectedFiles);
+        queueProcessor.processQueue(); 
     
-    queueProcessor->processQueue(); 
+        std::wstring sMessage = std::wstring(L"Files selected:\r\n");
+        std::mutex _itemProc; 
+        for (auto i_Res = m_SelectedFiles.begin(); i_Res != m_SelectedFiles.end(); ++i_Res) {
+                std::unique_lock<std::mutex> _iPr(_itemProc);
+                while (i_Res->second.second != PROCESSING_STATE::READY) {
+                    queueProcessor.m_cvResult.wait(_iPr);
+                }
+                sMessage += i_Res->second.first + L"\r\n";
+                oLog << i_Res->second.first + L"\r\n";
+                oLog.flush();
+	    }
     
-    std::wstring sMessage = std::wstring(L"Files selected:\r\n");
-    std::mutex _itemProc; 
-    for (auto i_Res = m_SelectedFiles.begin(); i_Res != m_SelectedFiles.end(); ++i_Res) {
-            std::unique_lock<std::mutex> _iPr(_itemProc);
-			while ((*i_strRes).second.second != ItemListHandler::PROCESSING_STATE::READY) {
-                queueProcessor->m_cvResult.wait(_iPr);
-            }
-            sMessage += (*i_strRes).second.first + L"\r\n";
-            oLog << (*i_strRes).second.first + L"\r\n";
-            oLog.flush();
-	}
-    
-    if (queueProcessor.isReady()) {
-        MessageBox(hWnd, sMessage.c_str(), L"Avid-test", MB_OK);
-    } else {
-        MessageBox(hWnd, L"Unexpected return code from ItemListHandler", L"Avid-test", MB_OK);
+        if (queueProcessor.isReady()) {
+            MessageBox(hWnd, sMessage.c_str(), L"Avid-test", MB_OK);
+        } else {
+            MessageBox(hWnd, L"Unexpected return code from ItemListHandler", L"Avid-test", MB_OK);
+        }
+    } catch (...) {
+        MessageBox(hWnd, L"Unexpected exception", L"Avid-test", MB_OK);
     }
+
 }
 
 #pragma region IUnknown
@@ -158,9 +164,13 @@ IFACEMETHODIMP FileContextMenuExt::Initialize(
             for (auto i = 0; i < nFiles; ++i) {
 				if (0 == DragQueryFile(hDrop, i, p_TmpFName, sizeof(wchar_t)*MAX_PATH)) {
                     hr = E_FAIL;
-                }
-                m_SelectedFiles.insert(std::wstring(p_TmpFName),
-                                       std::pair<std::wstring, ItemListHandler::PROCESSING_STATE>(L"",ItemListHandler::PROCESSING_STATE::QUEUED));
+                 }
+                
+                m_SelectedFiles.insert(t_mapItem(
+                                       t_mapKey(p_TmpFName),
+                                       t_mapValue(L"", PROCESSING_STATE::QUEUED)
+                                       )
+                                );
                 memset(p_TmpFName, 0, sizeof(wchar_t)*MAX_PATH);
             }
             delete[] p_TmpFName;
@@ -198,10 +208,6 @@ IFACEMETHODIMP FileContextMenuExt::QueryContextMenu(
         return MAKE_HRESULT(SEVERITY_SUCCESS, 0, USHORT(0));
     }
 
-    // Use either InsertMenu or InsertMenuItem to add menu items.
-    // Learn how to add sub-menu from:
-    // http://www.codeproject.com/KB/shell/ctxextsubmenu.aspx
-
     MENUITEMINFO mii = { sizeof(mii) };
     mii.fMask = MIIM_BITMAP | MIIM_STRING | MIIM_FTYPE | MIIM_ID | MIIM_STATE;
     mii.wID = idCmdFirst + IDM_DISPLAY;
@@ -222,10 +228,6 @@ IFACEMETHODIMP FileContextMenuExt::QueryContextMenu(
     {
         return HRESULT_FROM_WIN32(GetLastError());
     }
-
-    // Return an HRESULT value with the severity set to SEVERITY_SUCCESS. 
-    // Set the code value to the offset of the largest command identifier 
-    // that was assigned, plus one (1).
     return MAKE_HRESULT(SEVERITY_SUCCESS, 0, USHORT(IDM_DISPLAY + 1));
 }
 

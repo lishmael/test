@@ -34,8 +34,7 @@ private:
     // Reference count of component.
     long m_cRef;
 
-    // The name of the selected file.
-	std::map<std::wstring, std::pair<std::wstring,ItemListHandler::PROCESSING_STATE> > m_SelectedFiles;
+    std::map<t_mapKey, t_mapValue> m_SelectedFiles;
 
     // The method that handles the "display" verb.
     void OnVerbDisplayFileName(HWND hWnd);

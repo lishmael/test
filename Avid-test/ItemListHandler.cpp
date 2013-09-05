@@ -1,15 +1,16 @@
 #include "ItemListHandler.h"
 
-ItemListHandler::ItemListHandler() : mState(QUEUED) {
+ItemListHandler::ItemListHandler(void) : mState(PROCESSING_STATE::NONE) {
 }
 
-ItemListHandler::~ItemListHandler() {
+ItemListHandler::~ItemListHandler(void) 
+{
 }
 
 void ItemListHandler::process() {
     while (mState == PROCESSING_STATE::PROCESSING) {
         m_lockOperation.lock();
-        if (m_iQueueProcesssing == mResult->end()) {
+        if (m_iQueueProcesssing == m_iEnd) {
             mState = PROCESSING_STATE::READY;
             m_lockOperation.unlock();
             m_cvProcessingEnds.notify_all();
@@ -19,8 +20,10 @@ void ItemListHandler::process() {
         auto i_elementProcessed = m_iQueueProcesssing;
         ++m_iQueueProcesssing;
         m_lockOperation.unlock();
-        i_elementProcessed.second = std::pair<std::wstring, PROCESSING_STATE>("", PROCESSING_STATE::PROCESSING);
-        std::ifstream inFile((*i_elementProcessed).first,
+        
+        i_elementProcessed->second = t_mapValue(L"", PROCESSING_STATE::PROCESSING);
+
+        std::ifstream inFile(i_elementProcessed->first.c_str(),
                              std::ifstream::in | std::ifstream::binary);
         if (inFile.is_open()) {
             unsigned long long lSum = 0, lSize = 0;
@@ -33,7 +36,7 @@ void ItemListHandler::process() {
             }
             inFile.close();
 
-            HANDLE hFile = CreateFileW((*i_elementProcessed).first.c_str(),
+            HANDLE hFile = CreateFile(i_elementProcessed->first.c_str(),
                                         GENERIC_READ,
                                         FILE_SHARE_READ | FILE_SHARE_WRITE,
                                         NULL,
@@ -42,7 +45,9 @@ void ItemListHandler::process() {
                                         NULL);
             
             std::wstring tmp_sRes = L"";
-            tmp_sRes += (*i_elementProcessed).first.substr((*i_elementProcessed).first.find_last_of(L"/\\") + 1) + L" ";
+            tmp_sRes += i_elementProcessed->first.substr(
+                            i_elementProcessed->first.find_last_of(L"/\\") + 1
+                        ) + L" ";
             
             if (hFile != INVALID_HANDLE_VALUE) {
                 FILETIME tmp_fileTime, tmp_localFileTime;
@@ -75,18 +80,21 @@ void ItemListHandler::process() {
             }
             tmp_sRes += L"; ";
 
-            *i_elementProcessed.second = std::pair<std::wstring, ItemListHandler::PROCESSING_STATE>(tmp_sRes, PROCESSING_STATE::READY);
+            i_elementProcessed->second = t_mapValue(tmp_sRes, PROCESSING_STATE::READY);
         }
         
         m_cvResult.notify_all();
     }
 }
 
-bool ItemListHandler::addQueueToProcess(std::map<std::wstring, std::wstring>* queue) {
+bool ItemListHandler::addQueueToProcess(
+                            std::map<t_mapKey, t_mapValue>::iterator begin,
+                            std::map<t_mapKey, t_mapValue>::iterator end) {
     if (mState == PROCESSING_STATE::PROCESSING) return false;
     
-    mResult = queue;
-    m_iQueueProcesssing = mResult->begin();
+    m_iEnd = end;
+    m_iQueueProcesssing = begin;
+    mState = PROCESSING_STATE::QUEUED;
     return true;
 }
 
@@ -123,4 +131,3 @@ bool ItemListHandler::isReady() const
 {
     return mState == PROCESSING_STATE::READY;
 }
-

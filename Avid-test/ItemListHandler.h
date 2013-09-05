@@ -11,10 +11,17 @@
 #include <condition_variable>
 #include <chrono>
 
+enum PROCESSING_STATE { NONE, QUEUED, PROCESSING, READY };
+
+typedef std::pair<std::wstring, PROCESSING_STATE> t_mapValue;
+typedef std::wstring t_mapKey;
+typedef std::pair<t_mapKey, t_mapValue> t_mapItem;
 
 class ItemListHandler
 {
 private:
+    PROCESSING_STATE mState;
+
     ItemListHandler(const ItemListHandler&);
 	ItemListHandler& operator=(const ItemListHandler&);
 
@@ -25,25 +32,23 @@ private:
 	std::list<std::thread*> m_pActiveThreads;
     
     // I/O
-    std::map<std::wstring, std::pair<std::wstring, PROCESSING_STATE> >* mResult;
-    std::map<std::wstring, std::wstring>::iterator m_iQueueProcesssing;
+    std::map<t_mapKey, t_mapValue>::iterator m_iEnd;
+    std::map<t_mapKey, t_mapValue>::iterator m_iQueueProcesssing;
 
-    // Processing
-    void PROCESSING_STATE mState;
-    
+    // Processing  
     void start();
-    void end();
-	void process();	
-
+    void processAndEnd();
+	
+    void process();	
 public:
-    enum PROCESSING_STATE = { QUEUED, PROCESSING, READY };
-
     mutable std::condition_variable m_cvResult;
     mutable std::condition_variable m_cvProcessingEnds;
-     
-    void addQueueToProcess(std::map<std::wstring, std::wstring>* mQueue); // adds queue to process;
-    bool processQueue();
+    
+    ItemListHandler(void);
+	~ItemListHandler(void); 
+    
+    bool addQueueToProcess(std::map<t_mapKey, t_mapValue>::iterator begin,
+                           std::map<t_mapKey, t_mapValue>::iterator end); // adds queue to process;
+    void processQueue();
     bool isReady() const; 
-	ItemListHandler();
-	~ItemListHandler();
 };
