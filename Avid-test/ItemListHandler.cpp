@@ -70,7 +70,6 @@ void ItemListHandler::process() {
                                         NULL);
             
             std::wstring tmp_sRes = L"";
-
             tmp_sRes += sArg.substr(sArg.find_last_of(L"/\\") + 1) + L" ";
             
             if (hFile != INVALID_HANDLE_VALUE) {
@@ -141,5 +140,4 @@ std::set<std::wstring> ItemListHandler::getResults() const
 
     return mResult;
 }
-
 
