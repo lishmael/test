@@ -1,49 +1,56 @@
 #include "ItemListHandler.h"
 
-ItemListHandler::ItemListHandler(std::wstring aLogFileName) : mAllStop(false), mLogFileName(aLogFileName) {
-    mOutLogger.open(mLogFileName, std::ofstream::out | std::ofstream::append);
+ItemListHandler::ItemListHandler(std::string aLogFileName) : 
+    mAllStop(false),
+    mLogFileName(aLogFileName),
+    m_cElemToProcess(-1),
+    m_cActiveProcessing(0),
+    m_cNeedsProcessing(0) {
+	mOutLogger.open(mLogFileName, std::ofstream::out | std::ofstream::app);
 
     unsigned int hw_threads = std::thread::hardware_concurrency();
     
     if (!hw_threads) hw_threads = 1;
 
     for (int i = 0; i < hw_threads; ++i) {
-        m_pActiveThreads.insert(new std::thread(&ItemListHandler::process, this));
-
+		m_pActiveThreads.push_back(new std::thread(&ItemListHandler::process, this));
+    }
 }
 
-ItemListHandler::~ItemListHandler(void) {
+ItemListHandler::~ItemListHandler() {
     mAllStop = true;
     
     for (auto p_Thread : m_pActiveThreads) {
         p_Thread->join();
-        delete p_Thread();
+        delete p_Thread;
     }
+
+    mOutLogger.close();
 }
 
 void ItemListHandler::process() {
     while (!mAllStop) {
-        if (!m_lockQueue.try_lock()) {
-             continue;
-        }
-            if (!m_lockOperation.try_lock() || !mQueue.size()) {
-                m_lockQueue.unlock();
-                continue;
-            }
-            
-                ++mProcessingActive;
-                const std::wstring& sArg = mQueue.front();
-                mQueue.pop_front();
+        m_lockOperation.lock();
+        while (!m_cNeedsProcessing)
+            m_cvNewItem.wait(m_lockOperation);
 
-            m_lockOperation.unlock();
+        if (mQueue.size() <= m_cElemToProcess) {
+                m_lockOperation.unlock();
+                continue;
+        }
+
+        std::wstring sArg = mQueue[m_cElemToProcess];
+        --m_cNeedsProcessing;
+        ++m_cElemToProcess;
+        ++m_cActiveProcessing;
+        
+        m_lockOperation.unlock();
     
-        m_lockQueue.unlock();
-    
-        std::ifstream inFile(sArg.c_str(), 
+        std::ifstream inFile(sArg,
                              std::ifstream::in | std::ifstream::binary);
         if (inFile.is_open()) {
-            unsigned long lSum = 0, lSize = 0;
-            char c;
+            unsigned long long lSum = 0, lSize = 0;
+            char c = 0;
             for (; inFile; inFile.read(&c, sizeof(char))) {
                 if (inFile.good()) {
                     lSum += (unsigned long)c;
@@ -52,49 +59,85 @@ void ItemListHandler::process() {
             }
             inFile.close();
 
-            std::wstring sTmpResult = sArg + L", size: " + std::to_wstring(lSize) 
-                + L"b, sum: " + std::to_wstring(lSum);
-
-            {
-                std::lock_guard<std::mutex> _logLock(m_lockLoggingk);
-                mOutLogger << sTmpResult << std::endl;
-            } 
+            HANDLE hFile = CreateFileW(sArg.c_str(),
+                                        GENERIC_READ,
+                                        FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                        NULL,
+                                        OPEN_EXISTING,
+                                        FILE_ATTRIBUTE_NORMAL,
+                                        NULL);
             
+            std::wstring tmp_sRes = L"";
+
+            tmp_sRes += sArg.substr(sArg.find_last_of(L"/\\") + 1) + L" ";
+            
+            if (hFile != INVALID_HANDLE_VALUE) {
+                FILETIME tmp_fileTime, tmp_localFileTime;
+                SYSTEMTIME tmp_sysTime;
+                GetFileTime(hFile, &tmp_fileTime, NULL, NULL);
+                FileTimeToLocalFileTime(&tmp_fileTime,  &tmp_localFileTime);
+                FileTimeToSystemTime(&tmp_localFileTime, &tmp_sysTime);
+            
+                tmp_sRes += 
+                    L"Created: " + std::to_wstring(tmp_sysTime.wDay) +
+                    L"." + std::to_wstring(tmp_sysTime.wMonth) + 
+                    L"." + std::to_wstring(tmp_sysTime.wYear) + 
+                    L" " + std::to_wstring(tmp_sysTime.wHour) + 
+                    L":" + (tmp_sysTime.wMinute >= 10 ? L"" : L"0") +
+                    std::to_wstring(tmp_sysTime.wMinute) + 
+                    L"; ";
+                CloseHandle(hFile);
+            }
+
+            tmp_sRes += L"Size: ";
+            std::wstring sizes[] = {L"B", L"KiB", L"MiB", L"GiB"};
+            long muls[] = { 1, 1024, 1048576, 1073742824 };
+            
+            for (int i = 3; i >= 0; --i) {
+                if (lSize / muls[i] != 0) {
+                    unsigned int tmp_iSizePart = lSize / muls[i];
+                    lSize = (unsigned long long)lSize % muls[i];
+                    tmp_sRes += std::to_wstring(tmp_iSizePart) + sizes[i] + L" ";
+                }
+            }
+            tmp_sRes += L"; ";
+
             std::lock_guard<std::mutex> _resLock(m_lockResult);
-            mResult.push_back(sTmpResult);
+            mResult.insert(tmp_sRes);
+            if (mOutLogger.is_open()) {
+                mOutLogger << tmp_sRes << L"\r\n";    
+                mOutLogger.flush();
+            }
         }
-        std::lock_guard<std::mutex> _lock(m_lockOperation);
-        --mProcessingActive;
+        std::lock_guard<std::mutex> _opLock(m_lockOperation);
+        
+        --m_cActiveProcessing;
+        m_cvResult.notify_all();
     }
 }
 
-void ItemListHandler::addItemToProcess(const std::wstring& sItem)
-{
-	std::lock_guard<std::mutex> _lock(m_lockQueue);
-    mQueue.push_back(sItem);	
-}
-
-std::list<std::wstring> ItemListHandler::getResults()
-{
-    while (true) {
-        if (!mProcessingActive && m_lockQueue.try_lock() && 
-            m_lockOperation.try_lock && m_lockResult.try_lock()) {
-            break;
-        }
-    }
-	
-    auto res = mResult;
-    res.sort();
+void ItemListHandler::addItemToProcess(std::wstring sItem) {
+    std::lock(m_lockQueue, m_lockOperation);
+    
+    mQueue.push_back(sItem);
+    ++m_cNeedsProcessing;
+    if (m_cElemToProcess < 0) m_cElemToProcess = 0;
     
     m_lockQueue.unlock();
     m_lockOperation.unlock();
-    m_lockResult.unlock();
 
-	return res;
+    m_cvNewItem.notify_one();
 }
 
-void ItemListHandler::cleanResults() {
-	std::lock_guard<std::mutex> _lock(m_lockResult);
-	mResult.clear();
+std::set<std::wstring> ItemListHandler::getResults() const
+{
+    std::unique_lock<std::mutex> _lockQ(m_lockQueue);
+    while (m_cActiveProcessing || m_cNeedsProcessing) {
+        m_cvResult.wait(_lockQ);
+    } 
+    std::lock_guard<std::mutex> _lockR(m_lockResult);
+
+    return mResult;
 }
+
 

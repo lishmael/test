@@ -3,9 +3,12 @@
 #include <thread>
 #include <mutex>
 #include <list>
+#include <vector>
+#include <set>
 #include <string>
-#include <algorithm>
 #include <fstream>
+#include <windows.h>
+#include <condition_variable>
 
 // TODO
 // rewrite result to be map
@@ -14,40 +17,46 @@
 class ItemListHandler
 {
 private:
-	// 
+	 
 
     ItemListHandler(const ItemListHandler&);
-    ItemListHandler& operator=(const Autolock&);
+	ItemListHandler& operator=(const ItemListHandler&);
 
 	// Locks
-	std::mutex m_lockResult;
-	std::mutex m_lockQueue;
-    std::mutex m_lockOperation;
-    std::mutex m_lockLogging;
+	mutable std::mutex m_lockResult;
+	mutable std::mutex m_lockQueue;
+    mutable std::mutex m_lockOperation;
+    mutable std::mutex m_lockLogging;
+    mutable std::condition_variable m_cvResult;
+    mutable std::condition_variable_any m_cvNewItem;
 
 	// Threads
 	std::list<std::thread*> m_pActiveThreads;
 	
 	// State
 	bool mAllStop;
-    int mProcessingActive;
-    
-    // Input queue
-    std::list<std::wstring> mQueue;
 
-	// Result
-	std::list<std::wstring> mResult;
+	std::string mLogFileName;
+
+    // Some counters
+    long m_cElemToProcess;
+    long m_cActiveProcessing;
+    long m_cNeedsProcessing;
+
+    // I/O queues
+    std::vector<const std::wstring> mQueue;
+    std::set<std::wstring> mResult;
+
 	std::wofstream mOutLogger;	
-	// Processing
+
+    // Processing
 	void process();	
-	
+
 public:
-	void addItemToProcess(const std::wstring& sItem); // adds new item to process
+	void addItemToProcess(std::wstring sItem); // adds new item to process
 	
-	std::list<std::wstring> getResults(); // waits and returns full results
+	std::set<std::wstring> getResults() const; // waits and returns full results
 										// note: doesn't cleans previous results
-	void cleanResults(); // removes contents of mResult
-	
-	ItemListHandler(const std::wstring aLogFileName);
-	~ItemListHandler(void);
+	ItemListHandler(std::string aLogFileName);
+	~ItemListHandler();
 };
