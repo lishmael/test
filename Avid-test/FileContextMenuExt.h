@@ -38,7 +38,7 @@ private:
 
     // The method that handles the "display" verb.
     void OnVerbDisplayFileName(HWND hWnd);
-    void calculateAndShow(HWND hWnd);
+    void calculateAndShow(HWND hWnd, std::map<t_mapKey, t_mapValue> items);
 
     PWSTR m_pszMenuText;
     HANDLE m_hMenuBmp;

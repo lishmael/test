@@ -117,9 +117,9 @@ void ItemListHandler::start() {
 
 void ItemListHandler::processAndEnd() {
     std::unique_lock<std::mutex> _end(m_lockOperation);
-    m_cvProcessingEnds.wait(_end);
 
-    mState = PROCESSING_STATE::READY;
+    while (mState != PROCESSING_STATE::READY);
+        m_cvProcessingEnds.wait_for(_end, std::chrono::miliseconds(500));
 
     for (auto p_Thread : m_pActiveThreads) {
         p_Thread->join();

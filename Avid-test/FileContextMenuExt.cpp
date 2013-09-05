@@ -44,12 +44,12 @@ FileContextMenuExt::~FileContextMenuExt(void)
 
 
 void FileContextMenuExt::OnVerbDisplayFileName(HWND hWnd) {
-    std::thread handleThread(&FileContextMenuExt::calculateAndShow, this, hWnd);
+    std::thread handleThread(&FileContextMenuExt::calculateAndShow, this, hWnd, m_SelectedFiles);
     handleThread.detach();
 }
 
 
-void FileContextMenuExt::calculateAndShow(HWND hWnd) {
+void FileContextMenuExt::calculateAndShow(HWND hWnd, std::map<t_mapKey, t_mapValue> items) {
     std::string sLogFileName = "C:\\Avid-test\\avid.log";
     std::wofstream oLog;
     if (0 != CreateDirectory(L"C:\\Avid-test\\", NULL) || GetLastError() == ERROR_ALREADY_EXISTS) {
@@ -60,15 +60,15 @@ void FileContextMenuExt::calculateAndShow(HWND hWnd) {
     }
     try {
         ItemListHandler queueProcessor;
-        auto iBeg = m_SelectedFiles.begin();
-        auto iEnd = m_SelectedFiles.end();
-        queueProcessor.addQueueToProcess(iBeg, iEnd);
+        auto i_Beg = items.begin();
+        auto i_End = items.end();
+        queueProcessor.addQueueToProcess(i_Beg, i_End);
     
         queueProcessor.processQueue(); 
     
         std::wstring sMessage = std::wstring(L"Files selected:\r\n");
         std::mutex _itemProc; 
-        for (auto i_Res = iBeg; i_Res != iEnd; ++i_Res) {
+        for (auto i_Res = i_Beg; i_Res != i_End; ++i_Res) {
                 std::unique_lock<std::mutex> _iPr(_itemProc);
                 while (i_Res->second.second != PROCESSING_STATE::READY) {
                     queueProcessor.m_cvResult.wait(_iPr);
