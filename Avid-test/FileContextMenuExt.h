@@ -8,6 +8,7 @@
 #include <string>
 #include "ItemListHandler.h"
 
+#define MAX_MESSAGE_ROWS 30
 
 class FileContextMenuExt : public IShellExtInit, public IContextMenu
 {
