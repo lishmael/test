@@ -58,7 +58,6 @@ void FileContextMenuExt::calculateAndShow(HWND hWnd) {
             oLog << L"-------Begin log file\r\n";
         }
     }
-    size_t sz = m_SelectedFiles.size();
     try {
         ItemListHandler queueProcessor;
         auto iBeg = m_SelectedFiles.begin();
@@ -69,7 +68,7 @@ void FileContextMenuExt::calculateAndShow(HWND hWnd) {
     
         std::wstring sMessage = std::wstring(L"Files selected:\r\n");
         std::mutex _itemProc; 
-        for (auto i_Res = m_SelectedFiles.begin(); i_Res != m_SelectedFiles.end(); ++i_Res) {
+        for (auto i_Res = iBeg; i_Res != iEnd; ++i_Res) {
                 std::unique_lock<std::mutex> _iPr(_itemProc);
                 while (i_Res->second.second != PROCESSING_STATE::READY) {
                     queueProcessor.m_cvResult.wait(_iPr);
