@@ -4,7 +4,7 @@
 #include <mutex>
 #include <list>
 #include <vector>
-#include <set>
+#include <map>
 #include <string>
 #include <fstream>
 #include <windows.h>
@@ -15,46 +15,35 @@
 class ItemListHandler
 {
 private:
-	 
-
     ItemListHandler(const ItemListHandler&);
 	ItemListHandler& operator=(const ItemListHandler&);
 
 	// Locks
-	mutable std::mutex m_lockResult;
-	mutable std::mutex m_lockQueue;
     mutable std::mutex m_lockOperation;
-    mutable std::mutex m_lockLogging;
-    mutable std::condition_variable m_cvResult;
-    mutable std::condition_variable_any m_cvNewItem;
-
+    
 	// Threads
 	std::list<std::thread*> m_pActiveThreads;
-	
-	// State
-	bool mAllStop;
-
-	std::string mLogFileName;
-
-    // Some counters
-    long m_cElemToProcess;
-    long m_cActiveProcessing;
-    long m_cNeedsProcessing;
-
-    // I/O queues
-    std::vector<const std::wstring> mQueue;
-    std::set<std::wstring> mResult;
-
-	std::wofstream mOutLogger;	
+    
+    // I/O
+    std::map<std::wstring, std::pair<std::wstring, PROCESSING_STATE> >* mResult;
+    std::map<std::wstring, std::wstring>::iterator m_iQueueProcesssing;
 
     // Processing
+    void PROCESSING_STATE mState;
+    
+    void start();
+    void end();
 	void process();	
 
 public:
-	void addItemToProcess(std::wstring sItem); // adds new item to process
-	
-	std::set<std::wstring> getResults() const; // waits and returns full results
-										// note: doesn't cleans previous results
-	ItemListHandler(std::string aLogFileName);
+    enum PROCESSING_STATE = { QUEUED, PROCESSING, READY };
+
+    mutable std::condition_variable m_cvResult;
+    mutable std::condition_variable m_cvProcessingEnds;
+     
+    void addQueueToProcess(std::map<std::wstring, std::wstring>* mQueue); // adds queue to process;
+    bool processQueue();
+    bool isReady() const; 
+	ItemListHandler();
 	~ItemListHandler();
 };

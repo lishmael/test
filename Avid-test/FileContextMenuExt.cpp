@@ -43,37 +43,45 @@ FileContextMenuExt::~FileContextMenuExt(void)
 
 
 void FileContextMenuExt::OnVerbDisplayFileName(HWND hWnd) {
-	std::wstring sMessage = std::wstring(L"Files selected:\r\n");
 	{
-        std::string sLogFileName = "C:\\Avid-test\\avid.log";
-        if (0 != CreateDirectory(L"C:\\Avid-test\\", NULL) || GetLastError() == ERROR_ALREADY_EXISTS) {
-            std::wofstream oLog(sLogFileName, std::ofstream::out | std::ofstream::trunc);
-            if (oLog.is_open()) {
-                oLog << L"-------Begin log file\r\n";
-                oLog.close();
-            }
-        }
-		
-        ItemListHandler *procList = new ItemListHandler(sLogFileName);
-	
-    	for (auto i_fName = m_SelectedFiles.begin(); i_fName != m_SelectedFiles.end(); ++i_fName) {
-            procList->addItemToProcess(*i_fName);
-		}
-        std::thread handleThread(&FileContextMenuExt::calculate_All, this, hWnd, procList);
+        std::thread handleThread(&FileContextMenuExt::calculateAndShow, this);
         handleThread.detach();
 	}
 }
 
 
-void FileContextMenuExt::calculate_All(HWND hWnd, const ItemListHandler* ilH) {
+void FileContextMenuExt::calculateAndShow(HWND hWnd) {
+    std::string sLogFileName = "C:\\Avid-test\\avid.log";
+    
+    if (0 != CreateDirectory(L"C:\\Avid-test\\", NULL) || GetLastError() == ERROR_ALREADY_EXISTS) {
+        std::wofstream oLog(sLogFileName, std::ofstream::out | std::ofstream::trunc);
+        if (oLog.is_open()) {
+            oLog << L"-------Begin log file\r\n";
+        }
+    }
+    
+    ItemListHandler queueProcessor();
+    queueProcessor->addQueueToProcess(*m_SelectedFiles);
+    
+    queueProcessor->processQueue(); 
+    
     std::wstring sMessage = std::wstring(L"Files selected:\r\n");
-    std::set<std::wstring> resList = ilH->getResults();
-    for (auto i_strRes = resList.begin(); i_strRes != resList.end(); ++i_strRes) {
-			sMessage += *i_strRes + L"\r\n";
+    std::mutex _itemProc; 
+    for (auto i_Res = m_SelectedFiles.begin(); i_Res != m_SelectedFiles.end(); ++i_Res) {
+            std::unique_lock<std::mutex> _iPr(_itemProc);
+			while ((*i_strRes).second.second != ItemListHandler::PROCESSING_STATE::READY) {
+                queueProcessor->m_cvResult.wait(_iPr);
+            }
+            sMessage += (*i_strRes).second.first + L"\r\n";
+            oLog << (*i_strRes).second.first + L"\r\n";
+            oLog.flush();
 	}
-    MessageBox(hWnd, sMessage.c_str(), L"Avid-test", MB_OK);
-    delete ilH;
-
+    
+    if (queueProcessor.isReady()) {
+        MessageBox(hWnd, sMessage.c_str(), L"Avid-test", MB_OK);
+    } else {
+        MessageBox(hWnd, L"Unexpected return code from ItemListHandler", L"Avid-test", MB_OK);
+    }
 }
 
 #pragma region IUnknown
@@ -151,7 +159,8 @@ IFACEMETHODIMP FileContextMenuExt::Initialize(
 				if (0 == DragQueryFile(hDrop, i, p_TmpFName, sizeof(wchar_t)*MAX_PATH)) {
                     hr = E_FAIL;
                 }
-                m_SelectedFiles.push_back(std::wstring(p_TmpFName));
+                m_SelectedFiles.insert(std::wstring(p_TmpFName),
+                                       std::pair<std::wstring, ItemListHandler::PROCESSING_STATE>(L"",ItemListHandler::PROCESSING_STATE::QUEUED));
                 memset(p_TmpFName, 0, sizeof(wchar_t)*MAX_PATH);
             }
             delete[] p_TmpFName;

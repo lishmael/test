@@ -35,11 +35,11 @@ private:
     long m_cRef;
 
     // The name of the selected file.
-	std::list<std::wstring> m_SelectedFiles;
+	std::map<std::wstring, std::pair<std::wstring,ItemListHandler::PROCESSING_STATE> > m_SelectedFiles;
 
     // The method that handles the "display" verb.
     void OnVerbDisplayFileName(HWND hWnd);
-    void calculate_All(HWND hWnd, const ItemListHandler* ilH);
+    void calculateAndShow(HWND hWnd);
 
     PWSTR m_pszMenuText;
     HANDLE m_hMenuBmp;

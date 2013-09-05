@@ -1,10 +1,14 @@
+Debug/
+Release/
 *.bin
 *.exe
 *.dll
 *.sdf
 *.suo
-Debug/
 *.bak
 *.swp
 *.tmp
 *.patch
+*.sdf
+*.opensdf
+*.suo

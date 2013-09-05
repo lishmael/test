@@ -1,54 +1,26 @@
 #include "ItemListHandler.h"
 
-ItemListHandler::ItemListHandler(std::string aLogFileName) : 
-    mAllStop(false),
-    mLogFileName(aLogFileName),
-    m_cElemToProcess(-1),
-    m_cActiveProcessing(0),
-    m_cNeedsProcessing(0) {
-	mOutLogger.open(mLogFileName, std::ofstream::out | std::ofstream::app);
-
-    unsigned int hw_threads = std::thread::hardware_concurrency();
-    
-    if (!hw_threads) hw_threads = 1;
-
-    for (int i = 0; i < hw_threads; ++i) {
-		m_pActiveThreads.push_back(new std::thread(&ItemListHandler::process, this));
-    }
+ItemListHandler::ItemListHandler() : mState(QUEUED) {
 }
 
 ItemListHandler::~ItemListHandler() {
-    mAllStop = true;
-    
-    for (auto p_Thread : m_pActiveThreads) {
-        p_Thread->join();
-        delete p_Thread;
-    }
-
-    mOutLogger.close();
 }
 
 void ItemListHandler::process() {
-    while (!mAllStop) {
+    while (mState == PROCESSING_STATE::PROCESSING) {
         m_lockOperation.lock();
-        while (!m_cNeedsProcessing) {
-            m_cvNewItem.wait_for(m_lockOperation, std::chrono::milliseconds(500));
-            if (mAllStop) return;
+        if (m_iQueueProcesssing == mResult->end()) {
+            mState = PROCESSING_STATE::READY;
+            m_lockOperation.unlock();
+            m_cvProcessingEnds.notify_all();
+            break;
         }
 
-        if (mQueue.size() <= m_cElemToProcess) {
-                m_lockOperation.unlock();
-                continue;
-        }
-
-        std::wstring sArg = mQueue[m_cElemToProcess];
-        --m_cNeedsProcessing;
-        ++m_cElemToProcess;
-        ++m_cActiveProcessing;
-        
+        auto i_elementProcessed = m_iQueueProcesssing;
+        ++m_iQueueProcesssing;
         m_lockOperation.unlock();
-    
-        std::ifstream inFile(sArg,
+        i_elementProcessed.second = std::pair<std::wstring, PROCESSING_STATE>("", PROCESSING_STATE::PROCESSING);
+        std::ifstream inFile((*i_elementProcessed).first,
                              std::ifstream::in | std::ifstream::binary);
         if (inFile.is_open()) {
             unsigned long long lSum = 0, lSize = 0;
@@ -61,7 +33,7 @@ void ItemListHandler::process() {
             }
             inFile.close();
 
-            HANDLE hFile = CreateFileW(sArg.c_str(),
+            HANDLE hFile = CreateFileW((*i_elementProcessed).first.c_str(),
                                         GENERIC_READ,
                                         FILE_SHARE_READ | FILE_SHARE_WRITE,
                                         NULL,
@@ -70,7 +42,7 @@ void ItemListHandler::process() {
                                         NULL);
             
             std::wstring tmp_sRes = L"";
-            tmp_sRes += sArg.substr(sArg.find_last_of(L"/\\") + 1) + L" ";
+            tmp_sRes += (*i_elementProcessed).first.substr((*i_elementProcessed).first.find_last_of(L"/\\") + 1) + L" ";
             
             if (hFile != INVALID_HANDLE_VALUE) {
                 FILETIME tmp_fileTime, tmp_localFileTime;
@@ -103,41 +75,52 @@ void ItemListHandler::process() {
             }
             tmp_sRes += L"; ";
 
-            std::lock_guard<std::mutex> _resLock(m_lockResult);
-            mResult.insert(tmp_sRes);
-            if (mOutLogger.is_open()) {
-                mOutLogger << tmp_sRes << L"\r\n";    
-                mOutLogger.flush();
-            }
+            *i_elementProcessed.second = std::pair<std::wstring, ItemListHandler::PROCESSING_STATE>(tmp_sRes, PROCESSING_STATE::READY);
         }
-        std::lock_guard<std::mutex> _opLock(m_lockOperation);
         
-        --m_cActiveProcessing;
         m_cvResult.notify_all();
     }
 }
 
-void ItemListHandler::addItemToProcess(std::wstring sItem) {
-    std::lock(m_lockQueue, m_lockOperation);
+bool ItemListHandler::addQueueToProcess(std::map<std::wstring, std::wstring>* queue) {
+    if (mState == PROCESSING_STATE::PROCESSING) return false;
     
-    mQueue.push_back(sItem);
-    ++m_cNeedsProcessing;
-    if (m_cElemToProcess < 0) m_cElemToProcess = 0;
-    
-    m_lockQueue.unlock();
-    m_lockOperation.unlock();
-
-    m_cvNewItem.notify_one();
+    mResult = queue;
+    m_iQueueProcesssing = mResult->begin();
+    return true;
 }
 
-std::set<std::wstring> ItemListHandler::getResults() const
-{
-    std::unique_lock<std::mutex> _lockQ(m_lockQueue);
-    while (m_cActiveProcessing || m_cNeedsProcessing) {
-        m_cvResult.wait_for(_lockQ, std::chrono::milliseconds(100));
-    } 
-    std::lock_guard<std::mutex> _lockR(m_lockResult);
+void ItemListHandler::processQueue() {
+    mState = PROCESSING_STATE::PROCESSING;
+    start();
+} 
 
-    return mResult;
+void ItemListHandler::start() {
+    unsigned int hw_threads = std::thread::hardware_concurrency();
+    
+    if (!hw_threads) hw_threads = 1;
+
+    for (int i = 0; i < hw_threads; ++i) {
+		m_pActiveThreads.push_back(new std::thread(&ItemListHandler::process, this));
+    }
+
+    processAndEnd(); 
+}
+
+void ItemListHandler::processAndEnd() {
+    std::unique_lock<std::mutex> _end(m_lockOperation);
+    m_cvProcessingEnds.wait(_end);
+
+    mState = PROCESSING_STATE::READY;
+
+    for (auto p_Thread : m_pActiveThreads) {
+        p_Thread->join();
+        delete p_Thread;
+    }
+}
+
+bool ItemListHandler::isReady() const
+{
+    return mState == PROCESSING_STATE::READY;
 }
 
