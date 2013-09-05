@@ -2,8 +2,11 @@
 
 #include <windows.h>
 #include <shlobj.h>     // For IShellExtInit and IContextMenu
+#include <set>
 #include <list>
+#include <thread>
 #include <string>
+#include "ItemListHandler.h"
 
 
 class FileContextMenuExt : public IShellExtInit, public IContextMenu
@@ -36,6 +39,7 @@ private:
 
     // The method that handles the "display" verb.
     void OnVerbDisplayFileName(HWND hWnd);
+    void calculate_All(HWND hWnd, const ItemListHandler* ilH);
 
     PWSTR m_pszMenuText;
     HANDLE m_hMenuBmp;

@@ -1,6 +1,5 @@
 #include "FileContextMenuExt.h"
 #include "resource.h"
-#include "ItemListHandler.h"
 
 #include <strsafe.h>
 #include <Shlwapi.h>
@@ -50,38 +49,50 @@ void FileContextMenuExt::OnVerbDisplayFileName(HWND hWnd) {
         if (0 != CreateDirectory(L"C:\\Avid-test\\", NULL) || GetLastError() == ERROR_ALREADY_EXISTS) {
             std::wofstream oLog(sLogFileName, std::ofstream::out | std::ofstream::trunc);
             if (oLog.is_open()) {
-                oLog << L"-------Begin log file" << std::endl;
+                oLog << L"-------Begin log file\r\n";
                 oLog.close();
             }
         }
 		
-        ItemListHandler procList(sLogFileName);
+        ItemListHandler *procList = new ItemListHandler(sLogFileName);
 	
     	for (auto i_fName = m_SelectedFiles.begin(); i_fName != m_SelectedFiles.end(); ++i_fName) {
-			procList.addItemToProcess(*i_fName);
+            procList->addItemToProcess(*i_fName);
 		}
-		std::list<std::wstring> resList = procList.getResults();
-		for (auto i_strRes = resList.begin(); i_strRes != resList.end(); ++i_strRes) {
-			sMessage += *i_strRes + std::endl; 
-		}
+        std::thread handleThread(&FileContextMenuExt::calculate_All, this, hWnd, procList);
+        handleThread.detach();
 	}
-	MessageBox(hWnd, sMessage.c_str(), L"Avid-test", MB_OK);
-	m_SelectedFiles.clear();
 }
 
+
+void FileContextMenuExt::calculate_All(HWND hWnd, const ItemListHandler* ilH) {
+    std::wstring sMessage = std::wstring(L"Files selected:\r\n");
+    std::set<std::wstring> resList = ilH->getResults();
+    for (auto i_strRes = resList.begin(); i_strRes != resList.end(); ++i_strRes) {
+			sMessage += *i_strRes + L"\r\n";
+	}
+    MessageBox(hWnd, sMessage.c_str(), L"Avid-test", MB_OK);
+    delete ilH;
+
+}
 
 #pragma region IUnknown
 
 // Query to the interface the component supported.
 IFACEMETHODIMP FileContextMenuExt::QueryInterface(REFIID riid, void **ppv)
 {
-    static const QITAB qit[] = 
-    {
-        QITABENT(FileContextMenuExt, IContextMenu),
-        QITABENT(FileContextMenuExt, IShellExtInit), 
-        { 0 },
-    };
-    return QISearch(this, qit, riid, ppv);
+    if (riid == __uuidof(IUnknown) || riid == __uuidof(IContextMenu)) {
+        *ppv = static_cast<IContextMenu*>(this);
+        AddRef();
+        return  S_OK;
+    }
+    if (riid == __uuidof(IShellExtInit)) {
+        *ppv = static_cast<IShellExtInit*>(this);
+        AddRef();
+        return S_OK;
+    }
+    *ppv = NULL;
+    return E_NOINTERFACE;
 }
 
 // Increase the reference count for an interface on an object.
@@ -130,21 +141,20 @@ IFACEMETHODIMP FileContextMenuExt::Initialize(
         HDROP hDrop = static_cast<HDROP>(GlobalLock(stm.hGlobal));
         if (hDrop != NULL)
         {
-            // Determine how many files are involved in this operation. This 
-            // code sample displays the custom context menu item when only 
-            // one file is selected. 
+            // Determine how many files are involved in this operation.
             UINT nFiles = DragQueryFile(hDrop, 0xFFFFFFFF, NULL, 0);
             hr = S_OK;
-            
+
+            wchar_t* p_TmpFName = new wchar_t[MAX_PATH];
+            memset(p_TmpFName, 0, sizeof(wchar_t)*MAX_PATH);
             for (auto i = 0; i < nFiles; ++i) {
-                wchar_t* tmp_p_name = new wchar_t[MAX_PATH];
-				if (0 == DragQueryFile(hDrop, i, tmp_p_name, std::char_traits<wchar_t>::length(tmp_p_name))) {
+				if (0 == DragQueryFile(hDrop, i, p_TmpFName, sizeof(wchar_t)*MAX_PATH)) {
                     hr = E_FAIL;
                 }
-				m_SelectedFiles.emplace_back(tmp_p_name);
-				delete[] tmp_p_name;
+                m_SelectedFiles.push_back(std::wstring(p_TmpFName));
+                memset(p_TmpFName, 0, sizeof(wchar_t)*MAX_PATH);
             }
-            
+            delete[] p_TmpFName;
             GlobalUnlock(stm.hGlobal);
         }
 
