@@ -63,8 +63,9 @@ void FileContextMenuExt::calculateAndShow(HWND hWnd, std::map<t_mapKey, t_mapVal
         } else {
             int j = 0;
             for (auto i = items.begin(); i != items.end() && j <= MAX_MESSAGE_ROWS; ++i) {
-                if (i->second.isReady()) {
-                    sMessage += i->second.getStat() + L"\n";
+                t_mapValue* item = &i->second;
+                if (item->isReady()) {
+                    sMessage += item->getStat() + L"\n";
                     ++j;
                 }
             }
