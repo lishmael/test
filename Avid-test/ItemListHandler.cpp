@@ -31,8 +31,10 @@ ItemListHandler::~ItemListHandler() {
 void ItemListHandler::process() {
     while (!mAllStop) {
         m_lockOperation.lock();
-        while (!m_cNeedsProcessing)
-            m_cvNewItem.wait(m_lockOperation);
+        while (!m_cNeedsProcessing) {
+            m_cvNewItem.wait_for(m_lockOperation, std::chrono::milliseconds(500));
+            if (mAllStop) return;
+        }
 
         if (mQueue.size() <= m_cElemToProcess) {
                 m_lockOperation.unlock();
@@ -133,7 +135,7 @@ std::set<std::wstring> ItemListHandler::getResults() const
 {
     std::unique_lock<std::mutex> _lockQ(m_lockQueue);
     while (m_cActiveProcessing || m_cNeedsProcessing) {
-        m_cvResult.wait(_lockQ);
+        m_cvResult.wait_for(_lockQ, std::chrono::milliseconds(100));
     } 
     std::lock_guard<std::mutex> _lockR(m_lockResult);
 
