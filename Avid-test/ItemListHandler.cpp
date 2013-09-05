@@ -93,10 +93,6 @@ void ItemListHandler::process() {
             tmp_sRes += L"Size: ";
             std::wstring sizes[] = {L"B", L"KiB", L"MiB", L"GiB"};
             long muls[] = { 1, 1024, 1048576, 1073742824 };
-
-            tmp_sRes += L"Size: ";
-            std::wstring sizes[] = {L"B", L"KiB", L"MiB", L"GiB"};
-            long muls[] = { 1, 1024, 1048576, 1073742824 };
             
             for (int i = 3; i >= 0; --i) {
                 if (lSize / muls[i] != 0) {
