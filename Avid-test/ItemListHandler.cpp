@@ -20,7 +20,7 @@ ItemListHandler::~ItemListHandler(void) {
 // false if error occured;
 // Call of this function blocks caller thread
 bool ItemListHandler::process() {
-	if (mState == PROCESSING_STATE::READY) {
+    if (mState == PROCESSING_STATE::READY) {
          return true;
     }
     if (mState == PROCESSING_STATE::ERROR_UNKNOWN || mState == PROCESSING_STATE::ERROR_CANT_OPEN_LOG_FILE) {

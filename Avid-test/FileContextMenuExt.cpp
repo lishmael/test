@@ -19,9 +19,11 @@ FileContextMenuExt::FileContextMenuExt(void) : m_cRef(1),
     m_pszVerbCanonicalName("Avid-test"),
     m_pwszVerbCanonicalName(L"Avid-test"),
     m_pszVerbHelpText("Avid-test"),
-    m_hMenuBmp(NULL)
+    m_pwszVerbHelpText(L"Avid-test")
 {
     InterlockedIncrement(&g_cDllRef);
+    m_hMenuBmp = LoadImage(g_hInst, MAKEINTRESOURCE(IDB_OK),
+        IMAGE_BITMAP, 0, 0, LR_DEFAULTSIZE | LR_LOADTRANSPARENT);
 }
 
 FileContextMenuExt::~FileContextMenuExt(void)
@@ -164,9 +166,8 @@ IFACEMETHODIMP FileContextMenuExt::Initialize(
 IFACEMETHODIMP FileContextMenuExt::QueryContextMenu(
     HMENU hMenu, UINT indexMenu, UINT idCmdFirst, UINT idCmdLast, UINT uFlags)
 {
-    if (CMF_DEFAULTONLY & uFlags)
-    {
-        return MAKE_HRESULT(SEVERITY_SUCCESS, 0, USHORT(0));
+    if (CMF_DEFAULTONLY & uFlags)    {
+	    return MAKE_HRESULT(SEVERITY_SUCCESS, 0, USHORT(0));
     }
 
     MENUITEMINFO mii = { sizeof(mii) };
@@ -176,16 +177,15 @@ IFACEMETHODIMP FileContextMenuExt::QueryContextMenu(
     mii.dwTypeData = m_pszMenuText;
     mii.fState = MFS_ENABLED;
     mii.hbmpItem = static_cast<HBITMAP>(m_hMenuBmp);
-    if (!InsertMenuItem(hMenu, indexMenu, TRUE, &mii))
-    {
+
+    if (!InsertMenuItem(hMenu, indexMenu, TRUE, &mii)) {
         return HRESULT_FROM_WIN32(GetLastError());
     }
 
     MENUITEMINFO sep = { sizeof(sep) };
     sep.fMask = MIIM_TYPE;
     sep.fType = MFT_SEPARATOR;
-    if (!InsertMenuItem(hMenu, indexMenu + 1, TRUE, &sep))
-    {
+    if (!InsertMenuItem(hMenu, indexMenu + 1, TRUE, &sep)) {
         return HRESULT_FROM_WIN32(GetLastError());
     }
     return MAKE_HRESULT(SEVERITY_SUCCESS, 0, USHORT(IDM_DISPLAY + 1));
