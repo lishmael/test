@@ -15,8 +15,8 @@ ItemListHandler::~ItemListHandler(void) {
 }
 
 // ItemListHandler::process() 
-// main function should be called to start processing items
-// returns true if processing starts successfully
+// should be called to start processing items
+// returns true if processing done successfully
 // false if error occured;
 // Call of this function blocks caller thread
 bool ItemListHandler::process() {
