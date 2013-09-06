@@ -4,18 +4,18 @@
 #include <fstream>
 #include <windows.h>
 
-class Item { 
+class Item {
 public:
     enum ITEM_STATE { RAW, PROCESSED, READY, BAD };
-    
+
     Item(std::wstring wsFullPath);
     ~Item();
 
-    void process();
+    void process(); // process file and collect stats
 
     bool isReady() const;
     ITEM_STATE getState() const;
-    std::wstring getStat() const;
+    std::wstring getStat() const; // get file stats
     std::wstring getFullPath() const;
 
 private:

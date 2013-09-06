@@ -12,7 +12,7 @@ extern long g_cDllRef;
 
 #define IDM_DISPLAY             0  // The command's identifier offset
 
-FileContextMenuExt::FileContextMenuExt(void) : m_cRef(1), 
+FileContextMenuExt::FileContextMenuExt(void) : m_cRef(1),
     m_pszMenuText(L"&Avid-test"),
     m_pszVerb("Avid-test"),
     m_pwszVerb(L"Avid-test"),
@@ -39,27 +39,36 @@ FileContextMenuExt::~FileContextMenuExt(void)
 
 
 void FileContextMenuExt::OnVerbDisplayFileName(HWND hWnd) {
+    // Create new thread to process selected files
     std::thread handleThread(&FileContextMenuExt::calculateAndShow, this, hWnd, m_SelectedFiles);
+
+    // Detach created thread so it released after all processing done
     handleThread.detach();
 }
 
 
 void FileContextMenuExt::calculateAndShow(HWND hWnd, std::map<t_mapKey, t_mapItem> items) {
     try {
+        // Path map iterators to ItemListHandler;
+        // Be noted that call of ItemListHandler::process() will modify actual date in map
         ItemListHandler queueProcessor(items.begin(), items.end());
-        std::wstring sMessage = L"Some error happened\n"; 
-        
+        std::wstring sMessage = L"Some error happened\n";
+
+        // Run processing and wait until it ends with success
         if (queueProcessor.process()) {
+            // Get first MAX_MESSAGE_ROWS - 1 results from queueProcessor
             sMessage = queueProcessor.getResult(MAX_MESSAGE_ROWS - 1);
 
+            // If there are more items, than we want to show, add small notification
             if (items.size() > MAX_MESSAGE_ROWS - 1) {
                 sMessage += L"(And " +
-                            std::to_wstring(items.size() - MAX_MESSAGE_ROWS) + 
+                            std::to_wstring(items.size() - MAX_MESSAGE_ROWS) +
                             L" more file(s))\n...\n";
             }
         }
+        // Show MessageBox with results
         MessageBox(hWnd, sMessage.c_str(), L"Avid-test", MB_OK);
-        
+
     } catch (...) {
         MessageBox(hWnd, L"Unexpected exception", L"Avid-test", MB_OK);
     }
@@ -73,7 +82,7 @@ IFACEMETHODIMP FileContextMenuExt::QueryInterface(REFIID riid, void **ppv)
 {
     HRESULT hr = E_NOINTERFACE;
     *ppv = NULL;
-   
+
     if (riid == __uuidof(IUnknown) || riid == __uuidof(IContextMenu)) {
         *ppv = static_cast<IContextMenu*>(this);
         hr = S_OK;
@@ -81,11 +90,11 @@ IFACEMETHODIMP FileContextMenuExt::QueryInterface(REFIID riid, void **ppv)
         *ppv = static_cast<IShellExtInit*>(this);
         hr = S_OK;
     }
-    
+
     if (hr == S_OK) {
         AddRef();
     }
-    
+
     return hr;
 }
 
@@ -124,26 +133,29 @@ IFACEMETHODIMP FileContextMenuExt::Initialize(
 
     FORMATETC fe = { CF_HDROP, NULL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL };
     STGMEDIUM stm;
-    
+
     if (SUCCEEDED(pDataObj->GetData(&fe, &stm)))
     {
         HDROP hDrop = static_cast<HDROP>(GlobalLock(stm.hGlobal));
         if (hDrop != NULL)
         {
+            // Collecting number of files selected
             UINT nFiles = DragQueryFile(hDrop, 0xFFFFFFFF, NULL, 0);
             hr = S_OK;
-            
+    
+            // temporary storage for file names
             wchar_t* p_TmpFName = new wchar_t[MAX_PATH];
             memset(p_TmpFName, 0, sizeof(wchar_t)*MAX_PATH);
-            
+    
+            // For each selected file, create <Item> and put it into map
             for (auto i = 0; i < nFiles; ++i) {
-				if (0 == DragQueryFile(hDrop, i, p_TmpFName, sizeof(wchar_t)*MAX_PATH)) {
+                if (0 == DragQueryFile(hDrop, i, p_TmpFName, sizeof(wchar_t)*MAX_PATH)) {
                     hr = E_FAIL;
                 }
-            
+    
                 t_mapKey itemKey = std::wstring(p_TmpFName);
                 t_mapItem item(itemKey);
-                
+        
                 m_SelectedFiles.insert(t_mapElement(itemKey, item));
             }
             delete[] p_TmpFName;
@@ -153,7 +165,7 @@ IFACEMETHODIMP FileContextMenuExt::Initialize(
         ReleaseStgMedium(&stm);
     }
 
-    // If any value other than S_OK is returned from the method, the context 
+    // If any value other than S_OK is returned from the method, the context
     // menu item is not displayed.
     return hr;
 }
@@ -167,7 +179,7 @@ IFACEMETHODIMP FileContextMenuExt::QueryContextMenu(
     HMENU hMenu, UINT indexMenu, UINT idCmdFirst, UINT idCmdLast, UINT uFlags)
 {
     if (CMF_DEFAULTONLY & uFlags)    {
-	    return MAKE_HRESULT(SEVERITY_SUCCESS, 0, USHORT(0));
+        return MAKE_HRESULT(SEVERITY_SUCCESS, 0, USHORT(0));
     }
 
     MENUITEMINFO mii = { sizeof(mii) };
@@ -224,7 +236,7 @@ IFACEMETHODIMP FileContextMenuExt::InvokeCommand(LPCMINVOKECOMMANDINFO pici)
 }
 
 
-IFACEMETHODIMP FileContextMenuExt::GetCommandString(UINT_PTR idCommand, 
+IFACEMETHODIMP FileContextMenuExt::GetCommandString(UINT_PTR idCommand,
     UINT uFlags, UINT *pwReserved, LPSTR pszName, UINT cchMax)
 {
     HRESULT hr = E_INVALIDARG;
@@ -234,12 +246,12 @@ IFACEMETHODIMP FileContextMenuExt::GetCommandString(UINT_PTR idCommand,
         switch (uFlags)
         {
         case GCS_HELPTEXTW:
-            hr = StringCchCopy(reinterpret_cast<PWSTR>(pszName), cchMax, 
+            hr = StringCchCopy(reinterpret_cast<PWSTR>(pszName), cchMax,
                 m_pwszVerbHelpText);
             break;
 
         case GCS_VERBW:
-            hr = StringCchCopy(reinterpret_cast<PWSTR>(pszName), cchMax, 
+            hr = StringCchCopy(reinterpret_cast<PWSTR>(pszName), cchMax,
                 m_pwszVerbCanonicalName);
             break;
 

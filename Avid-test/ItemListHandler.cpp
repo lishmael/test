@@ -1,10 +1,10 @@
 #include "ItemListHandler.h"
 
 ItemListHandler::ItemListHandler(std::map<t_mapKey, t_mapItem>::iterator begin,
-                                 std::map<t_mapKey, t_mapItem>::iterator end) : 
+                                 std::map<t_mapKey, t_mapItem>::iterator end) :
     mState(PROCESSING_STATE::NONE),
     m_iEnd(end),
-    m_iItemToProcess(begin), 
+    m_iItemToProcess(begin),
     m_iLog(begin) {
         init();
 }
@@ -14,10 +14,10 @@ ItemListHandler::~ItemListHandler(void) {
     deinit();
 }
 
-// ItemListHandler::process() 
+// ItemListHandler::process()
 // should be called to start processing items
 // returns true if processing done successfully
-// false if error occured;
+// false if error occurs;
 // Call of this function blocks caller thread
 bool ItemListHandler::process() {
     if (mState == PROCESSING_STATE::READY) {
@@ -28,15 +28,20 @@ bool ItemListHandler::process() {
     }
 
     mState = PROCESSING_STATE::PROCESSING;
-    
+
+    // Activate as much threadWorkers as hardware allows
+
     unsigned int hw_threads = std::thread::hardware_concurrency();
-    
+
     if (!hw_threads) hw_threads = 1;
 
     for (int i = 0; i < hw_threads; ++i) {
         m_pActiveThreads.push_back(new std::thread(&ItemListHandler::threadWorker, this));
     }
 
+    // Wait while m_cvSomItemReady triggers
+    // Log new item ready and add it stats to m_sRes list
+    // End with logging after all queue is processed
     for (; m_iLog != m_iEnd; ++m_iLog) {
         t_mapItem* item = &m_iLog->second;
         while (!item->isReady()) {
@@ -51,20 +56,24 @@ bool ItemListHandler::process() {
         }
     }
 
+    // Processing done successfully
     return true;
-} 
+}
 
 void ItemListHandler::threadWorker() {
+    // threadWorker spins until all queue is processed
     while (m_iItemToProcess != m_iEnd) {
         m_lockOperation.lock();
-
-        auto i_elementProcessed = m_iItemToProcess;
+ 
+        // for next item in queue, get its reference into item var
+        t_mapItem* item = &m_iItemToProcess->second;
         ++m_iItemToProcess;
+ 
         m_lockOperation.unlock();
-        
-        t_mapItem* item = &i_elementProcessed->second;
+ 
         item->process();
-        
+ 
+        // Item was processed, notify all waiters
         m_cvSomeItemReady.notify_all();
     }
 }
@@ -72,7 +81,7 @@ void ItemListHandler::threadWorker() {
 
 std::wstring ItemListHandler::getResult(size_t maxLinesToReturn) const {
     if (mState == PROCESSING_STATE::READY) {
-        return L"Some error occured - state is not READY";
+        return L"Some error occur - state is not READY";
     }
     std::wstring tmpRes = L"";
     size_t done = 0;
@@ -92,9 +101,9 @@ bool ItemListHandler::init() {
     if (m_ofsLogger.is_open()) {
         m_ofsLogger.close();
     }
-    
+
     mState = PROCESSING_STATE::ERROR_CANT_OPEN_LOG_FILE;
-    
+
     if (0 != CreateDirectory(L"C:\\Avid-test\\", NULL) ||
         GetLastError() == ERROR_ALREADY_EXISTS) {
         m_ofsLogger.open(L"C:\\Avid-test\\avid-test.log",
@@ -102,8 +111,8 @@ bool ItemListHandler::init() {
         if (m_ofsLogger.is_open()) {
             m_ofsLogger << L"-------Begin log file" << std::endl;
             mState = PROCESSING_STATE::QUEUED;
-        } 
-    }  
+        }
+    }
     return true;
 }
 

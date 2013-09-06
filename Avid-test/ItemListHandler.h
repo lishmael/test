@@ -23,37 +23,36 @@ class ItemListHandler
 {
 public:
     enum PROCESSING_STATE { NONE, QUEUED, PROCESSING, READY, ERROR_CANT_OPEN_LOG_FILE, ERROR_UNKNOWN };
-    
+
     ItemListHandler(std::map<t_mapKey, t_mapItem>::iterator begin,
                     std::map<t_mapKey, t_mapItem>::iterator end);
-	~ItemListHandler(void); 
-
+    ~ItemListHandler(void);
 
     bool process();
-    
+
     std::wstring getResult(size_t maxLinesToReturn) const;
     PROCESSING_STATE getState() const;
-     
+
     mutable std::condition_variable m_cvSomeItemReady;
-    
+
 private:
     PROCESSING_STATE mState;
 
     ItemListHandler(const ItemListHandler&);
-	ItemListHandler& operator=(const ItemListHandler&);
+    ItemListHandler& operator=(const ItemListHandler&);
 
-    // Processing  
+    // Processing
     void threadWorker();
     bool init();
     bool deinit();
     bool reset();
-	
+
     // Locks
     mutable std::mutex m_lockOperation;
-    
-	// Threads
-	std::list<std::thread*> m_pActiveThreads;
-    
+
+    // Threads
+    std::list<std::thread*> m_pActiveThreads;
+
     // I/O
     std::map<t_mapKey, t_mapItem>::iterator m_iEnd;
     std::map<t_mapKey, t_mapItem>::iterator m_iItemToProcess;
