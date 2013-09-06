@@ -29,9 +29,9 @@ public:
 	~ItemListHandler(void); 
 
 
-    void process();
+    bool process();
     
-    std::wstring getResult(size_t maxLinesToReturn);
+    std::wstring getResult(size_t maxLinesToReturn) const;
     PROCESSING_STATE getState() const;
      
     mutable std::condition_variable m_cvSomeItemReady;

@@ -123,6 +123,7 @@
   <ItemGroup>
     <ClInclude Include="ClassFactory.h" />
     <ClInclude Include="FileContextMenuExt.h" />
+    <ClInclude Include="Item.h" />
     <ClInclude Include="ItemListHandler.h" />
     <ClInclude Include="Reg.h" />
     <ClInclude Include="resource.h" />
@@ -131,6 +132,7 @@
     <ClCompile Include="ClassFactory.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="FileContextMenuExt.cpp" />
+    <ClCompile Include="Item.cpp" />
     <ClCompile Include="ItemListHandler.cpp" />
     <ClCompile Include="Reg.cpp" />
   </ItemGroup>

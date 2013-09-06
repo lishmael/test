@@ -19,7 +19,6 @@ FileContextMenuExt::FileContextMenuExt(void) : m_cRef(1),
     m_pszVerbCanonicalName("Avid-test"),
     m_pwszVerbCanonicalName(L"Avid-test"),
     m_pszVerbHelpText("Avid-test"),
-    m_pwszVerbHelpTet(L"Avid-test"),
     m_hMenuBmp(NULL)
 {
     InterlockedIncrement(&g_cDllRef);

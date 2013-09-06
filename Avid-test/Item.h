@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <fstream>
 #include <windows.h>
 
 class Item { 

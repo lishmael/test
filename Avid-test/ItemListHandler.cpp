@@ -20,7 +20,7 @@ ItemListHandler::~ItemListHandler(void) {
 // false if error occured;
 // Call of this function blocks caller thread
 bool ItemListHandler::process() {
-    if (isReady()) {
+	if (mState == PROCESSING_STATE::READY) {
          return true;
     }
     if (mState == PROCESSING_STATE::ERROR_UNKNOWN || mState == PROCESSING_STATE::ERROR_CANT_OPEN_LOG_FILE) {
@@ -87,7 +87,7 @@ ItemListHandler::PROCESSING_STATE ItemListHandler::getState() const {
     return mState;
 }
 
-void ItemListHandler::init() {
+bool ItemListHandler::init() {
     if (mState != PROCESSING_STATE::NONE) return false;
     if (m_ofsLogger.is_open()) {
         m_ofsLogger.close();
@@ -125,15 +125,4 @@ bool ItemListHandler::reset() {
     if (mState == PROCESSING_STATE::PROCESSING) return false;
     if (!deinit()) return false;
     return init();
-}
-
-bool ItemListHandler::reQueue(std::map<t_mapKey, t_mapItem>::iterator begin,
-                              std::map<t_mapKey, t_mapItem>::iterator end) {
-    if (mState == PROCESSING_STATE::PROCESSING) return false;
-
-    m_iEnd = end;
-    m_iItemToProcess = begin;
-    m_iLog = begin;
-
-    return reset();
 }
