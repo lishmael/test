@@ -13,22 +13,16 @@ extern long g_cDllRef;
 #define IDM_DISPLAY             0  // The command's identifier offset
 
 FileContextMenuExt::FileContextMenuExt(void) : m_cRef(1), 
-    m_SelectedFiles(),
     m_pszMenuText(L"&Avid-test"),
     m_pszVerb("Avid-test"),
     m_pwszVerb(L"Avid-test"),
     m_pszVerbCanonicalName("Avid-test"),
     m_pwszVerbCanonicalName(L"Avid-test"),
     m_pszVerbHelpText("Avid-test"),
-    m_pwszVerbHelpText(L"Avid-test")
+    m_pwszVerbHelpTet(L"Avid-test"),
+    m_hMenuBmp(NULL)
 {
     InterlockedIncrement(&g_cDllRef);
-    m_SelectedFiles.clear();
-    // Load the bitmap for the menu item. 
-    // If you want the menu item bitmap to be transparent, the color depth of 
-    // the bitmap must not be greater than 8bpp.
-    m_hMenuBmp = LoadImage(g_hInst, MAKEINTRESOURCE(IDB_OK), 
-        IMAGE_BITMAP, 0, 0, LR_DEFAULTSIZE | LR_LOADTRANSPARENT);
 }
 
 FileContextMenuExt::~FileContextMenuExt(void)
@@ -52,26 +46,16 @@ void FileContextMenuExt::OnVerbDisplayFileName(HWND hWnd) {
 void FileContextMenuExt::calculateAndShow(HWND hWnd, std::map<t_mapKey, t_mapItem> items) {
     try {
         ItemListHandler queueProcessor(items.begin(), items.end());
-
-        queueProcessor.process(); 
-        queueProcessor.waitTillReady();
-    
-        std::wstring sMessage;
+        std::wstring sMessage = L"Some error happened\n"; 
         
-        if (items.size() <= MAX_MESSAGE_ROWS) {
-            sMessage = queueProcessor.getResult();
-        } else {
-            int j = 0;
-            for (auto i = items.begin(); i != items.end() && j <= MAX_MESSAGE_ROWS; ++i) {
-                t_mapItem* item = &i->second;
-                if (item->isReady()) {
-                    sMessage += item->getStat() + L"\n";
-                    ++j;
-                }
+        if (queueProcessor.process()) {
+            sMessage = queueProcessor.getResult(MAX_MESSAGE_ROWS - 1);
+
+            if (items.size() > MAX_MESSAGE_ROWS - 1) {
+                sMessage += L"(And " +
+                            std::to_wstring(items.size() - MAX_MESSAGE_ROWS) + 
+                            L" more file(s))\n...\n";
             }
-            sMessage += L"(And " +
-                        std::to_wstring(items.size() - MAX_MESSAGE_ROWS) + 
-                        L" more file(s))\n...\n";
         }
         MessageBox(hWnd, sMessage.c_str(), L"Avid-test", MB_OK);
         
@@ -86,18 +70,22 @@ void FileContextMenuExt::calculateAndShow(HWND hWnd, std::map<t_mapKey, t_mapIte
 // Query to the interface the component supported.
 IFACEMETHODIMP FileContextMenuExt::QueryInterface(REFIID riid, void **ppv)
 {
+    HRESULT hr = E_NOINTERFACE;
+    *ppv = NULL;
+   
     if (riid == __uuidof(IUnknown) || riid == __uuidof(IContextMenu)) {
         *ppv = static_cast<IContextMenu*>(this);
-        AddRef();
-        return  S_OK;
-    }
-    if (riid == __uuidof(IShellExtInit)) {
+        hr = S_OK;
+    } else if (riid == __uuidof(IShellExtInit)) {
         *ppv = static_cast<IShellExtInit*>(this);
-        AddRef();
-        return S_OK;
+        hr = S_OK;
     }
-    *ppv = NULL;
-    return E_NOINTERFACE;
+    
+    if (hr == S_OK) {
+        AddRef();
+    }
+    
+    return hr;
 }
 
 // Increase the reference count for an interface on an object.
@@ -127,8 +115,7 @@ IFACEMETHODIMP_(ULONG) FileContextMenuExt::Release()
 IFACEMETHODIMP FileContextMenuExt::Initialize(
     LPCITEMIDLIST pidlFolder, LPDATAOBJECT pDataObj, HKEY hKeyProgID)
 {
-    if (NULL == pDataObj)
-    {
+    if (NULL == pDataObj) {
         return E_INVALIDARG;
     }
 
@@ -136,32 +123,27 @@ IFACEMETHODIMP FileContextMenuExt::Initialize(
 
     FORMATETC fe = { CF_HDROP, NULL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL };
     STGMEDIUM stm;
-
-    // The pDataObj pointer contains the objects being acted upon. In this 
-    // example, we get an HDROP handle for enumerating the selected files and 
-    // folders.
+    
     if (SUCCEEDED(pDataObj->GetData(&fe, &stm)))
     {
-        // Get an HDROP handle.
         HDROP hDrop = static_cast<HDROP>(GlobalLock(stm.hGlobal));
         if (hDrop != NULL)
         {
-            // Determine how many files are involved in this operation.
             UINT nFiles = DragQueryFile(hDrop, 0xFFFFFFFF, NULL, 0);
             hr = S_OK;
-
+            
             wchar_t* p_TmpFName = new wchar_t[MAX_PATH];
             memset(p_TmpFName, 0, sizeof(wchar_t)*MAX_PATH);
+            
             for (auto i = 0; i < nFiles; ++i) {
 				if (0 == DragQueryFile(hDrop, i, p_TmpFName, sizeof(wchar_t)*MAX_PATH)) {
                     hr = E_FAIL;
                 }
+            
                 t_mapKey itemKey = std::wstring(p_TmpFName);
                 t_mapItem item(itemKey);
                 
                 m_SelectedFiles.insert(t_mapElement(itemKey, item));
-                
-                memset(p_TmpFName, 0, sizeof(wchar_t)*MAX_PATH);
             }
             delete[] p_TmpFName;
             GlobalUnlock(stm.hGlobal);
@@ -180,19 +162,9 @@ IFACEMETHODIMP FileContextMenuExt::Initialize(
 
 #pragma region IContextMenu
 
-//
-//   FUNCTION: FileContextMenuExt::QueryContextMenu
-//
-//   PURPOSE: The Shell calls IContextMenu::QueryContextMenu to allow the 
-//            context menu handler to add its menu items to the menu. It 
-//            passes in the HMENU handle in the hmenu parameter. The 
-//            indexMenu parameter is set to the index to be used for the 
-//            first menu item that is to be added.
-//
 IFACEMETHODIMP FileContextMenuExt::QueryContextMenu(
     HMENU hMenu, UINT indexMenu, UINT idCmdFirst, UINT idCmdLast, UINT uFlags)
 {
-    // If uFlags include CMF_DEFAULTONLY then we should not do anything.
     if (CMF_DEFAULTONLY & uFlags)
     {
         return MAKE_HRESULT(SEVERITY_SUCCESS, 0, USHORT(0));
@@ -210,7 +182,6 @@ IFACEMETHODIMP FileContextMenuExt::QueryContextMenu(
         return HRESULT_FROM_WIN32(GetLastError());
     }
 
-    // Add a separator.
     MENUITEMINFO sep = { sizeof(sep) };
     sep.fMask = MIIM_TYPE;
     sep.fType = MFT_SEPARATOR;
@@ -222,114 +193,38 @@ IFACEMETHODIMP FileContextMenuExt::QueryContextMenu(
 }
 
 
-//
-//   FUNCTION: FileContextMenuExt::InvokeCommand
-//
-//   PURPOSE: This method is called when a user clicks a menu item to tell 
-//            the handler to run the associated command. The lpcmi parameter 
-//            points to a structure that contains the needed information.
-//
 IFACEMETHODIMP FileContextMenuExt::InvokeCommand(LPCMINVOKECOMMANDINFO pici)
 {
     BOOL fUnicode = FALSE;
+    HRESULT hr = E_FAIL;
 
-    // Determine which structure is being passed in, CMINVOKECOMMANDINFO or 
-    // CMINVOKECOMMANDINFOEX based on the cbSize member of lpcmi. Although 
-    // the lpcmi parameter is declared in Shlobj.h as a CMINVOKECOMMANDINFO 
-    // structure, in practice it often points to a CMINVOKECOMMANDINFOEX 
-    // structure. This struct is an extended version of CMINVOKECOMMANDINFO 
-    // and has additional members that allow Unicode strings to be passed.
-    if (pici->cbSize == sizeof(CMINVOKECOMMANDINFOEX))
-    {
-        if (pici->fMask & CMIC_MASK_UNICODE)
-        {
+    if (pici->cbSize == sizeof(CMINVOKECOMMANDINFOEX)) {
+        if (pici->fMask & CMIC_MASK_UNICODE) {
             fUnicode = TRUE;
         }
     }
 
-    // Determines whether the command is identified by its offset or verb.
-    // There are two ways to identify commands:
-    // 
-    //   1) The command's verb string 
-    //   2) The command's identifier offset
-    // 
-    // If the high-order word of lpcmi->lpVerb (for the ANSI case) or 
-    // lpcmi->lpVerbW (for the Unicode case) is nonzero, lpVerb or lpVerbW 
-    // holds a verb string. If the high-order word is zero, the command 
-    // offset is in the low-order word of lpcmi->lpVerb.
-
-    // For the ANSI case, if the high-order word is not zero, the command's 
-    // verb string is in lpcmi->lpVerb. 
-    if (!fUnicode && HIWORD(pici->lpVerb))
-    {
-        // Is the verb supported by this context menu extension?
-        if (StrCmpIA(pici->lpVerb, m_pszVerb) == 0)
-        {
+    if (!fUnicode && HIWORD(pici->lpVerb)) {
+        if (StrCmpIA(pici->lpVerb, m_pszVerb) == 0) {
             OnVerbDisplayFileName(pici->hwnd);
+            hr = S_OK;
         }
-        else
-        {
-            // If the verb is not recognized by the context menu handler, it 
-            // must return E_FAIL to allow it to be passed on to the other 
-            // context menu handlers that might implement that verb.
-            return E_FAIL;
+    } else if (fUnicode && HIWORD(((CMINVOKECOMMANDINFOEX*)pici)->lpVerbW)) {
+        if (StrCmpIW(((CMINVOKECOMMANDINFOEX*)pici)->lpVerbW, m_pwszVerb) == 0) {
+            OnVerbDisplayFileName(pici->hwnd);
+            hr = S_OK;
+        }
+    } else {
+        if (LOWORD(pici->lpVerb) == IDM_DISPLAY) {
+            OnVerbDisplayFileName(pici->hwnd);
+            hr = S_OK;
         }
     }
 
-    // For the Unicode case, if the high-order word is not zero, the 
-    // command's verb string is in lpcmi->lpVerbW. 
-    else if (fUnicode && HIWORD(((CMINVOKECOMMANDINFOEX*)pici)->lpVerbW))
-    {
-        // Is the verb supported by this context menu extension?
-        if (StrCmpIW(((CMINVOKECOMMANDINFOEX*)pici)->lpVerbW, m_pwszVerb) == 0)
-        {
-            OnVerbDisplayFileName(pici->hwnd);
-        }
-        else
-        {
-            // If the verb is not recognized by the context menu handler, it 
-            // must return E_FAIL to allow it to be passed on to the other 
-            // context menu handlers that might implement that verb.
-            return E_FAIL;
-        }
-    }
-
-    // If the command cannot be identified through the verb string, then 
-    // check the identifier offset.
-    else
-    {
-        // Is the command identifier offset supported by this context menu 
-        // extension?
-        if (LOWORD(pici->lpVerb) == IDM_DISPLAY)
-        {
-            OnVerbDisplayFileName(pici->hwnd);
-        }
-        else
-        {
-            // If the verb is not recognized by the context menu handler, it 
-            // must return E_FAIL to allow it to be passed on to the other 
-            // context menu handlers that might implement that verb.
-            return E_FAIL;
-        }
-    }
-
-    return S_OK;
+    return hr;
 }
 
 
-//
-//   FUNCTION: CFileContextMenuExt::GetCommandString
-//
-//   PURPOSE: If a user highlights one of the items added by a context menu 
-//            handler, the handler's IContextMenu::GetCommandString method is 
-//            called to request a Help text string that will be displayed on 
-//            the Windows Explorer status bar. This method can also be called 
-//            to request the verb string that is assigned to a command. 
-//            Either ANSI or Unicode verb strings can be requested. This 
-//            example only implements support for the Unicode values of 
-//            uFlags, because only those have been used in Windows Explorer 
-//            since Windows 2000.
-//
 IFACEMETHODIMP FileContextMenuExt::GetCommandString(UINT_PTR idCommand, 
     UINT uFlags, UINT *pwReserved, LPSTR pszName, UINT cchMax)
 {
@@ -340,16 +235,11 @@ IFACEMETHODIMP FileContextMenuExt::GetCommandString(UINT_PTR idCommand,
         switch (uFlags)
         {
         case GCS_HELPTEXTW:
-            // Only useful for pre-Vista versions of Windows that have a 
-            // Status bar.
             hr = StringCchCopy(reinterpret_cast<PWSTR>(pszName), cchMax, 
                 m_pwszVerbHelpText);
             break;
 
         case GCS_VERBW:
-            // GCS_VERBW is an optional feature that enables a caller to 
-            // discover the canonical name for the verb passed in through 
-            // idCommand.
             hr = StringCchCopy(reinterpret_cast<PWSTR>(pszName), cchMax, 
                 m_pwszVerbCanonicalName);
             break;
@@ -358,9 +248,6 @@ IFACEMETHODIMP FileContextMenuExt::GetCommandString(UINT_PTR idCommand,
             hr = S_OK;
         }
     }
-
-    // If the command (idCommand) is not supported by this context menu 
-    // extension handler, return E_INVALIDARG.
 
     return hr;
 }

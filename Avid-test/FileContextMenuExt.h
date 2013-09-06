@@ -1,14 +1,16 @@
 #pragma once
 
+#include "Item.h"
+#include "ItemListHandler.h"
+
 #include <windows.h>
 #include <shlobj.h>     // For IShellExtInit and IContextMenu
 #include <set>
 #include <list>
 #include <thread>
 #include <string>
-#include "ItemListHandler.h"
 
-#define MAX_MESSAGE_ROWS 30
+#define MAX_MESSAGE_ROWS 30 // Max rows to show in MessageBox
 
 class FileContextMenuExt : public IShellExtInit, public IContextMenu
 {
