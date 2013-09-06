@@ -217,20 +217,21 @@ IFACEMETHODIMP FileContextMenuExt::InvokeCommand(LPCMINVOKECOMMANDINFO pici)
 
     if (!fUnicode && HIWORD(pici->lpVerb)) {
         if (StrCmpIA(pici->lpVerb, m_pszVerb) == 0) {
-            OnVerbDisplayFileName(pici->hwnd);
             hr = S_OK;
         }
     } else if (fUnicode && HIWORD(((CMINVOKECOMMANDINFOEX*)pici)->lpVerbW)) {
         if (StrCmpIW(((CMINVOKECOMMANDINFOEX*)pici)->lpVerbW, m_pwszVerb) == 0) {
-            OnVerbDisplayFileName(pici->hwnd);
             hr = S_OK;
         }
     } else {
         if (LOWORD(pici->lpVerb) == IDM_DISPLAY) {
-            OnVerbDisplayFileName(pici->hwnd);
             hr = S_OK;
         }
     }
+
+	if (hr == S_OK) {
+		OnVerbDisplayFileName(pici->hwnd);
+	}
 
     return hr;
 }
